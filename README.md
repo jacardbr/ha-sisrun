@@ -5,7 +5,7 @@ aviso quando o treinador muda a planilha e histórico de semanas passadas.
 
 **Somente leitura**: nunca escreve nada no SisRUN. Não é afiliado nem apoiado pelo SisRUN.
 
-Versão atual: **0.2.0** (veja o [CHANGELOG](CHANGELOG.md)).
+Versão atual: **0.3.0** (veja o [CHANGELOG](CHANGELOG.md)).
 
 ## O que você ganha
 
@@ -42,7 +42,7 @@ Confirme os reais em **Ferramentas do desenvolvedor → Estados**.
    docker restart homeassistant   # troque pelo nome do seu container
    ```
 4. No Home Assistant: **Configurações → Dispositivos e serviços → Adicionar integração → SisRUN**.
-5. Informe o e-mail e a senha que você usa no app do aluno.
+5. Informe o e-mail e a senha que você usa no app do aluno e escolha o histórico: marque **Importar todo o histórico** ou, deixando desmarcado, informe na tela seguinte quantas semanas importar (padrão 12; 0 = não importar). A importação roda em segundo plano logo após a configuração e alimenta o calendário e as semanas anteriores do card.
 
 Precisa do Home Assistant **2025.1 ou mais novo**. O ícone e o logo da integração (pasta `brand/`) só são
 exibidos a partir da **2026.3**; em versões anteriores aparece o ícone genérico, sem afetar o funcionamento.
@@ -54,11 +54,13 @@ configurada continua valendo; as entidades novas aparecem sozinhas. O binário "
 
 ### Opções
 
-Em **SisRUN → Configurar**: de quantas em quantas horas consultar (padrão 3) e quantas semanas à frente
-buscar (padrão 1). Cada semana extra é mais uma requisição ao SisRUN. Em toda consulta a integração lê também
+Em **SisRUN → Configurar**: de quantas em quantas horas consultar (padrão 3), quantas semanas à frente
+buscar (padrão 1) e quantas semanas de histórico importar (aumentar o número importa o que falta, uma vez; a ação `ha_sisrun.load_history` continua disponível). Cada semana extra é mais uma requisição ao SisRUN. Em toda consulta a integração lê também
 a semana anterior, porque o SisRUN importa as atividades do Garmin/Strava com atraso.
 
 ## Histórico
+
+**Todo o histórico:** na configuração (ou em SisRUN → Configurar) marque *Importar todo o histórico*. A integração volta semana a semana (cerca de 1 requisição por semana, ~1 s cada) até o começo do que o SisRUN mostra; para quando encontra 16 semanas seguidas sem treino ou chega a 10 anos, e não guarda essa cauda vazia. Roda em segundo plano, pode levar alguns minutos e acontece uma vez; ao terminar, uma notificação do Home Assistant informa quantas semanas foram lidas e a data do treino mais antigo (se o SisRUN não tiver nada anterior, é ali que ele para). Para repetir depois, use a ação `ha_sisrun.load_history` com **Todo o histórico** ligado.
 
 Para o calendário mostrar treinos antigos, chame a ação uma vez (**Ferramentas do desenvolvedor → Ações**):
 
@@ -127,6 +129,41 @@ automation:
         data:
           message: "{{ trigger.event.data.message }}"
 ```
+
+## Card Lovelace
+
+A integração traz o card **SisRUN** e o carrega sozinha (não precisa cadastrar recurso). Depois de reiniciar,
+adicione em um painel: **Editar painel → Adicionar card → SisRUN**, ou em YAML:
+
+```yaml
+type: custom:ha-sisrun-card
+title: SisRUN          # opcional; "" esconde o título
+default_tab: plan      # plan | vo2 | races
+```
+
+Três abas:
+
+- **Planilha**: a semana dia a dia (hoje em destaque; dias sem treino não aparecem), com os controles « ‹ › » (« e » vão para a primeira e a última semana registradas; ‹ e › andam uma semana) abaixo da barra de progresso para voltar e avançar semanas (botão *Hoje* para retornar), com status, km, intensidade, FC, o que foi
+  realizado e a estrutura/observação do treinador (toque em *Estrutura*). No topo: km planejados, km
+  realizados e aderência da semana mostrada. Só há dados das semanas que a integração já leu: a atual, a anterior e as à frente configuradas; para mais antigas use a ação `ha_sisrun.load_history`.
+- **VO2 Max**: VO2 máx do último teste e variação em relação ao anterior, gráfico do histórico (passe o mouse
+  ou toque num ponto para ver o teste) e tabela com todos os testes.
+- **Provas**: suas provas e objetivos (tela *Objetivos/Metas* do SisRUN), com filtro por ano (chips *Todos*, 2026, 2025...; abre no ano atual). Mostra data, nome, distância, prioridade (★ Principal), situação e quanto falta ou quanto passou; a próxima prova fica destacada. Cada prova tem a tag **Inscrição**: vermelha (✗) até você tocar nela, quando fica verde (✓, inscrito). Essa informação o SisRUN não fornece: é guardada só no Home Assistant, junto das provas, e sobrevive às releituras (só administradores do Home Assistant conseguem marcar). Lê todas as páginas da lista (o SisRUN mostra 15 por vez) e guarda no Home Assistant; provas excluídas no SisRUN somem na próxima leitura.
+
+O card acha as entidades sozinho. Se você tiver duas contas, ou ele não achar, indique-as:
+
+```yaml
+type: custom:ha-sisrun-card
+entities:
+  monday: sensor.sisrun_treino_de_segunda
+  # ... tuesday a sunday
+  performance: sensor.sisrun_teste_de_desempenho
+  planned_km: sensor.sisrun_km_planejados_na_semana
+  done_km: sensor.sisrun_km_realizados_na_semana
+  adherence: sensor.sisrun_aderencia_semanal
+```
+
+Se o card não aparecer na lista depois de atualizar, recarregue o navegador sem cache (Ctrl+F5).
 
 ## Exemplo de automação: lembrete de manhã
 

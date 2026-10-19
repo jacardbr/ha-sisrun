@@ -109,6 +109,27 @@ def _in_week(rows: list[Workout], day: date) -> list[Workout]:
     return [r for r in rows if start.isoformat() <= r.get("date", "") <= end.isoformat()]
 
 
+def week_payload(rows: list[Workout], day: date, has_data: bool) -> dict[str, Any]:
+    """Semana de `day` pronta para o card: dias com treinos prescritos e totais."""
+    start, end = week_bounds(day)
+    adherence = week_adherence(rows, day)
+    return {
+        "week_start": start.isoformat(),
+        "week_end": end.isoformat(),
+        "has_data": has_data,
+        "days": [
+            {
+                "date": (d := weekday_date(day, i)).isoformat(),
+                "workouts": prescribed(workouts_on(rows, d)),
+            }
+            for i in range(7)
+        ],
+        "planned_km": planned_km_week(rows, day),
+        "done_km": adherence["done_km"] if adherence else done_km_week(rows, day, True),
+        "adherence": adherence,
+    }
+
+
 def planned_km_week(rows: list[Workout], day: date) -> float:
     """Km prescritos na semana de `day` (usa `planned_km`, o número corrigido)."""
     return round(sum(_num(r.get("planned_km")) for r in prescribed(_in_week(rows, day))), 1)
@@ -380,3 +401,46 @@ def test_message(test: Test) -> str:
     if test.get("vo2max") is not None:
         parts.append("VO2 máx " + f"{test['vo2max']:.2f}".replace(".", ","))
     return f"Novo teste de desempenho em {day}: " + " · ".join(parts)
+
+
+# ---------- provas (objetivos/metas) ----------
+
+Race = dict[str, Any]
+
+
+def race_key(race: Race) -> str:
+    """Identificador estável da prova: o `id` do SisRUN ou, sem ele, data + nome."""
+    if race.get("id"):
+        return f"id:{race['id']}"
+    return f"{race.get('date')}|{race.get('full_name') or race.get('name')}"
+
+
+def with_registration(
+    races: list[Race], registrations: dict[str, bool], names: dict[str, str] | None = None,
+    times: dict[str, str] | None = None,
+) -> list[Race]:
+    """Provas com `key` e `registered` (dado local: o SisRUN não informa a inscrição)."""
+    out = []
+    for race in races:
+        key = race_key(race)
+        item = {**race, "key": key, "registered": bool(registrations.get(key))}
+        if names and names.get(key):
+            item["local_name"] = names[key]  # só no Home Assistant; `name` segue o do SisRUN
+        if times and times.get(key):
+            item["finish_time"] = times[key]  # tempo de prova, só no Home Assistant
+        out.append(item)
+    return out
+
+
+def merge_races(stored: list[Race], new: list[Race]) -> list[Race]:
+    """Provas lidas + guardadas, da mais nova para a mais antiga.
+
+    O que a leitura trouxe é a verdade para o período que ela cobre (edições e
+    exclusões no SisRUN valem); provas guardadas mais antigas que tudo o que veio
+    ficam, para o caso de a tela ter vindo cortada (paginação).
+    """
+    if not new:
+        return sorted(stored, key=lambda r: (r.get("date", ""), r.get("name", "")), reverse=True)
+    oldest = min(r["date"] for r in new)
+    kept = [r for r in stored if r.get("date", "") < oldest]
+    return sorted(new + kept, key=lambda r: (r.get("date", ""), r.get("name", "")), reverse=True)

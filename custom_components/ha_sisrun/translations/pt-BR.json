@@ -6,7 +6,11 @@
         "description": "Use o mesmo e-mail e senha com que você entra no app do aluno (o acesso que o seu treinador te passou). A integração só lê a sua planilha de treinos; nunca escreve nada no SisRUN.",
         "data": {
           "email": "E-mail",
-          "password": "Senha"
+          "password": "Senha",
+          "import_all_history": "Importar todo o histórico"
+        },
+        "data_description": {
+          "import_all_history": "Volta semana a semana até o começo do que o SisRUN guarda (para quando acha 16 semanas seguidas sem treino; teto de 10 anos). Pode levar alguns minutos, em segundo plano. Se desmarcado, a próxima tela pergunta quantas semanas importar."
         }
       },
       "reauth_confirm": {
@@ -14,6 +18,15 @@
         "description": "O SisRUN recusou o login de {email}. Informe a senha atual.",
         "data": {
           "password": "Senha"
+        }
+      },
+      "history": {
+        "title": "Importar histórico",
+        "data": {
+          "import_history_weeks": "Semanas de histórico (0 = não importar)"
+        },
+        "data_description": {
+          "import_history_weeks": "Quantas semanas passadas buscar agora para alimentar o calendário e o card. Cada semana é uma requisição ao SisRUN. Pode repetir depois com a ação Carregar histórico."
         }
       }
     },
@@ -33,35 +46,84 @@
         "title": "Opções do SisRUN",
         "data": {
           "scan_interval_hours": "Consultar o SisRUN a cada (horas)",
-          "weeks_ahead": "Semanas à frente para buscar (0 = só a semana atual)"
+          "weeks_ahead": "Semanas à frente para buscar (0 = só a semana atual)",
+          "import_all_history": "Importar todo o histórico"
+        },
+        "data_description": {
+          "import_all_history": "Volta semana a semana até o começo do que o SisRUN guarda (para quando acha 16 semanas seguidas sem treino; teto de 10 anos). Pode levar alguns minutos, em segundo plano. Se desmarcado, a próxima tela pergunta quantas semanas importar."
+        }
+      },
+      "history": {
+        "title": "Importar histórico",
+        "data": {
+          "import_history_weeks": "Semanas de histórico (0 = não importar)"
+        },
+        "data_description": {
+          "import_history_weeks": "Quantas semanas passadas buscar agora para alimentar o calendário e o card. Cada semana é uma requisição ao SisRUN. Pode repetir depois com a ação Carregar histórico."
         }
       }
     }
   },
   "entity": {
     "calendar": {
-      "workouts": { "name": "Treinos" }
+      "workouts": {
+        "name": "Treinos"
+      }
     },
     "button": {
-      "refresh": { "name": "Atualizar agora" }
+      "refresh": {
+        "name": "Atualizar agora"
+      }
     },
     "sensor": {
-      "today": { "name": "Treino de hoje" },
-      "today_km": { "name": "Km do treino de hoje" },
-      "today_intensity": { "name": "Intensidade do treino de hoje" },
-      "today_note": { "name": "Observação do treinador (hoje)" },
-      "next": { "name": "Próximo treino" },
-      "week_planned_km": { "name": "Km planejados na semana" },
-      "week_done_km": { "name": "Km realizados na semana" },
-      "week_adherence": { "name": "Aderência semanal" },
-      "weekday_monday": { "name": "Treino de segunda" },
-      "weekday_tuesday": { "name": "Treino de terça" },
-      "weekday_wednesday": { "name": "Treino de quarta" },
-      "weekday_thursday": { "name": "Treino de quinta" },
-      "weekday_friday": { "name": "Treino de sexta" },
-      "weekday_saturday": { "name": "Treino de sábado" },
-      "weekday_sunday": { "name": "Treino de domingo" },
-      "performance_test": { "name": "Teste de desempenho" }
+      "today": {
+        "name": "Treino de hoje"
+      },
+      "today_km": {
+        "name": "Km do treino de hoje"
+      },
+      "today_intensity": {
+        "name": "Intensidade do treino de hoje"
+      },
+      "today_note": {
+        "name": "Observação do treinador (hoje)"
+      },
+      "next": {
+        "name": "Próximo treino"
+      },
+      "week_planned_km": {
+        "name": "Km planejados na semana"
+      },
+      "week_done_km": {
+        "name": "Km realizados na semana"
+      },
+      "week_adherence": {
+        "name": "Aderência semanal"
+      },
+      "weekday_monday": {
+        "name": "Treino de segunda"
+      },
+      "weekday_tuesday": {
+        "name": "Treino de terça"
+      },
+      "weekday_wednesday": {
+        "name": "Treino de quarta"
+      },
+      "weekday_thursday": {
+        "name": "Treino de quinta"
+      },
+      "weekday_friday": {
+        "name": "Treino de sexta"
+      },
+      "weekday_saturday": {
+        "name": "Treino de sábado"
+      },
+      "weekday_sunday": {
+        "name": "Treino de domingo"
+      },
+      "performance_test": {
+        "name": "Teste de desempenho"
+      }
     }
   },
   "services": {
@@ -76,6 +138,10 @@
         "config_entry_id": {
           "name": "Conta",
           "description": "Conta do SisRUN. Se vazio, vale para todas as contas configuradas."
+        },
+        "all": {
+          "name": "Todo o histórico",
+          "description": "Importa tudo o que o SisRUN tiver (ignora \"Semanas\"). Roda em segundo plano e avisa por notificação."
         }
       }
     }

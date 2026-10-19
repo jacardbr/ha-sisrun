@@ -9,6 +9,11 @@ load_history:
           min: 1
           max: 52
           mode: box
+    all:
+      required: false
+      default: false
+      selector:
+        boolean:
     config_entry_id:
       required: false
       selector:

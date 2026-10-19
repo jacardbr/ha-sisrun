@@ -11,15 +11,18 @@ Para atualizar quando o SisRUN mudar o site: copie as versões novas de
 """
 
 from .client import SisrunClient, SisrunError
-from .fetch import fetch_parsed
+from .fetch import fetch_all_parsed, fetch_parsed
 from .parser import detail_panels_missing, parse_week_html
 from .performance import parse_performance_html
+from .races import parse_races_html
 
 __all__ = [
     "SisrunClient",
     "SisrunError",
     "detail_panels_missing",
+    "fetch_all_parsed",
     "fetch_parsed",
     "parse_performance_html",
+    "parse_races_html",
     "parse_week_html",
 ]

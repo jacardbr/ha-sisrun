@@ -6,7 +6,11 @@
         "description": "Use the same e-mail and password you use in the athlete app (the login your coach gave you). This integration only reads your training plan; it never writes anything to SisRUN.",
         "data": {
           "email": "E-mail",
-          "password": "Password"
+          "password": "Password",
+          "import_all_history": "Import the whole history"
+        },
+        "data_description": {
+          "import_all_history": "Walks back week by week to the start of what SisRUN holds (stops after 16 empty weeks in a row; 10-year cap). May take a few minutes, in the background. If unchecked, the next screen asks how many weeks to import."
         }
       },
       "reauth_confirm": {
@@ -14,6 +18,15 @@
         "description": "SisRUN rejected the login for {email}. Enter the current password.",
         "data": {
           "password": "Password"
+        }
+      },
+      "history": {
+        "title": "Import history",
+        "data": {
+          "import_history_weeks": "Weeks of history (0 = none)"
+        },
+        "data_description": {
+          "import_history_weeks": "How many past weeks to fetch now to fill the calendar and the card. Each week is one request to SisRUN. You can repeat it later with the Load history action."
         }
       }
     },
@@ -33,35 +46,84 @@
         "title": "SisRUN options",
         "data": {
           "scan_interval_hours": "Poll SisRUN every (hours)",
-          "weeks_ahead": "Weeks ahead to fetch (0 = current week only)"
+          "weeks_ahead": "Weeks ahead to fetch (0 = current week only)",
+          "import_all_history": "Import the whole history"
+        },
+        "data_description": {
+          "import_all_history": "Walks back week by week to the start of what SisRUN holds (stops after 16 empty weeks in a row; 10-year cap). May take a few minutes, in the background. If unchecked, the next screen asks how many weeks to import."
+        }
+      },
+      "history": {
+        "title": "Import history",
+        "data": {
+          "import_history_weeks": "Weeks of history (0 = none)"
+        },
+        "data_description": {
+          "import_history_weeks": "How many past weeks to fetch now to fill the calendar and the card. Each week is one request to SisRUN. You can repeat it later with the Load history action."
         }
       }
     }
   },
   "entity": {
     "calendar": {
-      "workouts": { "name": "Workouts" }
+      "workouts": {
+        "name": "Workouts"
+      }
     },
     "button": {
-      "refresh": { "name": "Refresh now" }
+      "refresh": {
+        "name": "Refresh now"
+      }
     },
     "sensor": {
-      "today": { "name": "Today's workout" },
-      "today_km": { "name": "Today's workout distance" },
-      "today_intensity": { "name": "Today's workout intensity" },
-      "today_note": { "name": "Coach note (today)" },
-      "next": { "name": "Next workout" },
-      "week_planned_km": { "name": "Planned km this week" },
-      "week_done_km": { "name": "Done km this week" },
-      "week_adherence": { "name": "Weekly adherence" },
-      "weekday_monday": { "name": "Monday workout" },
-      "weekday_tuesday": { "name": "Tuesday workout" },
-      "weekday_wednesday": { "name": "Wednesday workout" },
-      "weekday_thursday": { "name": "Thursday workout" },
-      "weekday_friday": { "name": "Friday workout" },
-      "weekday_saturday": { "name": "Saturday workout" },
-      "weekday_sunday": { "name": "Sunday workout" },
-      "performance_test": { "name": "Performance test" }
+      "today": {
+        "name": "Today's workout"
+      },
+      "today_km": {
+        "name": "Today's workout distance"
+      },
+      "today_intensity": {
+        "name": "Today's workout intensity"
+      },
+      "today_note": {
+        "name": "Coach note (today)"
+      },
+      "next": {
+        "name": "Next workout"
+      },
+      "week_planned_km": {
+        "name": "Planned km this week"
+      },
+      "week_done_km": {
+        "name": "Done km this week"
+      },
+      "week_adherence": {
+        "name": "Weekly adherence"
+      },
+      "weekday_monday": {
+        "name": "Monday workout"
+      },
+      "weekday_tuesday": {
+        "name": "Tuesday workout"
+      },
+      "weekday_wednesday": {
+        "name": "Wednesday workout"
+      },
+      "weekday_thursday": {
+        "name": "Thursday workout"
+      },
+      "weekday_friday": {
+        "name": "Friday workout"
+      },
+      "weekday_saturday": {
+        "name": "Saturday workout"
+      },
+      "weekday_sunday": {
+        "name": "Sunday workout"
+      },
+      "performance_test": {
+        "name": "Performance test"
+      }
     }
   },
   "services": {
@@ -76,6 +138,10 @@
         "config_entry_id": {
           "name": "Account",
           "description": "SisRUN account. If empty, applies to every configured account."
+        },
+        "all": {
+          "name": "Whole history",
+          "description": "Imports everything SisRUN has (ignores \"Weeks\"). Runs in the background and reports by notification."
         }
       }
     }

@@ -17,6 +17,7 @@ from homeassistant.config_entries import (
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.core import callback
 from homeassistant.helpers.selector import (
+    BooleanSelector,
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
@@ -26,16 +27,26 @@ from homeassistant.helpers.selector import (
 )
 
 from .const import (
+    CONF_IMPORT_ALL_HISTORY,
+    CONF_IMPORT_HISTORY_WEEKS,
     CONF_SCAN_INTERVAL_HOURS,
     CONF_WEEKS_AHEAD,
     DEFAULT_SCAN_INTERVAL_HOURS,
     DEFAULT_WEEKS_AHEAD,
+    DEFAULT_HISTORY_WEEKS,
     DOMAIN,
+    MAX_HISTORY_WEEKS,
 )
 from .coordinator import is_login_failure
 from .sisrun_api import SisrunClient, SisrunError
 
 _LOGGER = logging.getLogger(__name__)
+
+_HISTORY = NumberSelector(
+    NumberSelectorConfig(
+        min=0, max=MAX_HISTORY_WEEKS, step=1, mode=NumberSelectorMode.BOX, unit_of_measurement="semanas"
+    )
+)
 
 _EMAIL = TextSelector(TextSelectorConfig(type=TextSelectorType.EMAIL, autocomplete="username"))
 _PASSWORD = TextSelector(
@@ -52,6 +63,9 @@ class SisrunConfigFlow(ConfigFlow, domain=DOMAIN):
     """Pede o login do SisRUN (o mesmo que o treinador te passou)."""
 
     VERSION = 1
+
+    def __init__(self) -> None:
+        self._data: dict[str, Any] = {}
 
     async def _validate(self, email: str, password: str) -> str | None:
         """Devolve a chave de erro, ou None se o login funcionou."""
@@ -73,19 +87,43 @@ class SisrunConfigFlow(ConfigFlow, domain=DOMAIN):
             await self.async_set_unique_id(email.lower())
             self._abort_if_unique_id_configured()
             if (error := await self._validate(email, password)) is None:
-                return self.async_create_entry(
-                    title=f"SisRUN ({email})",
-                    data={CONF_EMAIL: email, CONF_PASSWORD: password},
-                )
+                self._data = {
+                    CONF_EMAIL: email,
+                    CONF_PASSWORD: password,
+                    CONF_IMPORT_ALL_HISTORY: bool(user_input[CONF_IMPORT_ALL_HISTORY]),
+                    CONF_IMPORT_HISTORY_WEEKS: 0,
+                }
+                if self._data[CONF_IMPORT_ALL_HISTORY]:
+                    return self._create()
+                return await self.async_step_history()
             errors["base"] = error
 
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema(
-                {vol.Required(CONF_EMAIL): _EMAIL, vol.Required(CONF_PASSWORD): _PASSWORD}
+                {
+                    vol.Required(CONF_EMAIL): _EMAIL,
+                    vol.Required(CONF_PASSWORD): _PASSWORD,
+                    vol.Required(CONF_IMPORT_ALL_HISTORY, default=False): BooleanSelector(),
+                }
             ),
             errors=errors,
         )
+
+    async def async_step_history(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Só aparece quando NÃO se importa todo o histórico: quantas semanas importar."""
+        if user_input is not None:
+            self._data[CONF_IMPORT_HISTORY_WEEKS] = int(user_input[CONF_IMPORT_HISTORY_WEEKS])
+            return self._create()
+        return self.async_show_form(
+            step_id="history",
+            data_schema=vol.Schema(
+                {vol.Required(CONF_IMPORT_HISTORY_WEEKS, default=DEFAULT_HISTORY_WEEKS): _HISTORY}
+            ),
+        )
+
+    def _create(self) -> ConfigFlowResult:
+        return self.async_create_entry(title=f"SisRUN ({self._data[CONF_EMAIL]})", data=self._data)
 
     async def async_step_reauth(self, entry_data: Mapping[str, Any]) -> ConfigFlowResult:
         return await self.async_step_reauth_confirm()
@@ -117,16 +155,25 @@ class SisrunConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class SisrunOptionsFlow(OptionsFlow):
-    """Frequência de consulta e quantas semanas à frente buscar."""
+    """Frequência de consulta, semanas à frente e importação de histórico."""
+
+    def __init__(self) -> None:
+        self._options: dict[str, Any] = {}
+
+    def _current(self, key: str, default: Any) -> Any:
+        return self.config_entry.options.get(key, self.config_entry.data.get(key, default))
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         if user_input is not None:
-            return self.async_create_entry(
-                data={
-                    CONF_SCAN_INTERVAL_HOURS: int(user_input[CONF_SCAN_INTERVAL_HOURS]),
-                    CONF_WEEKS_AHEAD: int(user_input[CONF_WEEKS_AHEAD]),
-                }
-            )
+            self._options = {
+                CONF_SCAN_INTERVAL_HOURS: int(user_input[CONF_SCAN_INTERVAL_HOURS]),
+                CONF_WEEKS_AHEAD: int(user_input[CONF_WEEKS_AHEAD]),
+                CONF_IMPORT_ALL_HISTORY: bool(user_input[CONF_IMPORT_ALL_HISTORY]),
+                CONF_IMPORT_HISTORY_WEEKS: 0,
+            }
+            if self._options[CONF_IMPORT_ALL_HISTORY]:
+                return self.async_create_entry(data=self._options)
+            return await self.async_step_history()
 
         options = self.config_entry.options
         return self.async_show_form(
@@ -151,6 +198,27 @@ class SisrunOptionsFlow(OptionsFlow):
                     ): NumberSelector(
                         NumberSelectorConfig(min=0, max=4, step=1, mode=NumberSelectorMode.BOX)
                     ),
+                    vol.Required(
+                        CONF_IMPORT_ALL_HISTORY,
+                        default=self._current(CONF_IMPORT_ALL_HISTORY, False),
+                    ): BooleanSelector(),
+                }
+            ),
+        )
+
+    async def async_step_history(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Só aparece quando NÃO se importa todo o histórico."""
+        if user_input is not None:
+            self._options[CONF_IMPORT_HISTORY_WEEKS] = int(user_input[CONF_IMPORT_HISTORY_WEEKS])
+            return self.async_create_entry(data=self._options)
+        return self.async_show_form(
+            step_id="history",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_IMPORT_HISTORY_WEEKS,
+                        default=self._current(CONF_IMPORT_HISTORY_WEEKS, 0),
+                    ): _HISTORY
                 }
             ),
         )

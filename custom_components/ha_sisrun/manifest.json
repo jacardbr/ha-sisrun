@@ -3,10 +3,14 @@
   "name": "SisRUN",
   "codeowners": [],
   "config_flow": true,
+  "dependencies": [
+    "http",
+    "frontend"
+  ],
   "documentation": "https://github.com/cdutr/sisrun-mcp",
   "integration_type": "service",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/cdutr/sisrun-mcp/issues",
   "requirements": [],
-  "version": "0.2.0"
+  "version": "0.3.0"
 }

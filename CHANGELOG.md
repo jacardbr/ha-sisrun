@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.3.0
+
+### Novo
+- **Tempo de prova** (campo editável sob o título, já vem como 00:00:00; só administradores editam): você cadastra o tempo final de cada prova; fica guardado só no Home Assistant, salva ao sair do campo ou com Enter. Comando `ha_sisrun/set_race_time`.
+- **Renomear prova só localmente** (lápis ✎ ao lado do título, só para administradores): o nome fica guardado no Home Assistant e o SisRUN não é alterado; salvar vazio volta ao nome original. Comando `ha_sisrun/set_race_name`.
+- **Card Lovelace `custom:ha-sisrun-card`** com três abas: **Planilha** (semana atual), **VO2 Max**
+  (último teste, gráfico de histórico e tabela) e **Provas** (objetivos/metas do SisRUN, com filtro por ano). Servido pela própria integração
+  e carregado automaticamente; acha as entidades sozinho (ou via `entities:`).
+
+- **Navegação de semanas** na aba Planilha (‹ › e *Hoje*); dias sem treino ficam ocultos.
+
+- **Importar histórico na configuração**: campo novo ao adicionar a integração (e em Configurar) com o número de semanas passadas a importar; roda em segundo plano, uma vez por valor.
+- **Importar todo o histórico**: opção na configuração e em Configurar; volta semana a semana até acabarem os treinos (16 semanas vazias seguidas ou 10 anos), com notificação do resultado; a ação `load_history` ganhou o campo `all`. O limite de semanas guardadas subiu de 104 para 520.
+
+- **Inscrição nas provas**: tag vermelha/verde na aba Provas, marcada por você (dado local, não vem do SisRUN).
+
+### Mudanças internas
+- Comandos websocket `ha_sisrun/week`, `ha_sisrun/races` e `ha_sisrun/set_registration` (usados pelo card; o último exige administrador).
+- `sisrun_api/races.py` (novo): leitor da tela de metas, com paginação (tenta pedir todas as linhas de uma vez; senão, página a página).
+- `manifest.json` passa a depender de `http` e `frontend`.
+- Novo `frontend/ha-sisrun-card.js` (sem dependências externas).
+
 ## 0.2.0
 
 ### Novo

@@ -6,6 +6,8 @@ DOMAIN = "ha_sisrun"
 
 CONF_SCAN_INTERVAL_HOURS = "scan_interval_hours"
 CONF_WEEKS_AHEAD = "weeks_ahead"
+CONF_IMPORT_HISTORY_WEEKS = "import_history_weeks"
+CONF_IMPORT_ALL_HISTORY = "import_all_history"
 
 DEFAULT_SCAN_INTERVAL_HOURS = 3
 DEFAULT_WEEKS_AHEAD = 1
@@ -15,18 +17,22 @@ DEFAULT_WEEKS_AHEAD = 1
 REFRESH_WEEKS_BACK = 1
 
 STORAGE_VERSION = 1
-MAX_STORED_WEEKS = 104
+MAX_STORED_WEEKS = 520  # 10 anos: igual ao teto da importação de todo o histórico
 MAX_EVENTS_PER_REFRESH = 20
 
 EVENT_PLAN_CHANGED = "ha_sisrun_plan_changed"
 EVENT_NEW_TEST = "ha_sisrun_new_test"
 MAX_STORED_TESTS = 200
+MAX_STORED_RACES = 1000
 
 SERVICE_LOAD_HISTORY = "load_history"
 ATTR_WEEKS = "weeks"
+ATTR_ALL = "all"
 ATTR_CONFIG_ENTRY_ID = "config_entry_id"
 DEFAULT_HISTORY_WEEKS = 12
 MAX_HISTORY_WEEKS = 52
+# Valor interno de "semanas" que significa "todo o histórico".
+HISTORY_ALL = 9999
 
 PLATFORMS: list[Platform] = [
     Platform.BUTTON,
