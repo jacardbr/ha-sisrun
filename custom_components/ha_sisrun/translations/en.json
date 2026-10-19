@@ -1,0 +1,55 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "SisRUN",
+        "description": "Use the same e-mail and password you use in the athlete app (the login your coach gave you). This integration only reads your training plan; it never writes anything to SisRUN.",
+        "data": {
+          "email": "E-mail",
+          "password": "Password"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Sign in to SisRUN again",
+        "description": "SisRUN rejected the login for {email}. Enter the current password.",
+        "data": {
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "E-mail or password rejected by SisRUN.",
+      "cannot_connect": "Could not reach SisRUN (network down or the site changed).",
+      "unknown": "Unexpected error. Check the Home Assistant logs."
+    },
+    "abort": {
+      "already_configured": "This SisRUN account is already configured.",
+      "reauth_successful": "Password updated."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "SisRUN options",
+        "data": {
+          "scan_interval_hours": "Poll SisRUN every (hours)",
+          "weeks_ahead": "Weeks ahead to fetch (0 = current week only)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "calendar": {
+      "workouts": { "name": "Workouts" }
+    },
+    "sensor": {
+      "today": { "name": "Today's workout" },
+      "next": { "name": "Next workout" },
+      "week_planned_km": { "name": "Planned km this week" },
+      "week_done_km": { "name": "Done km this week" }
+    },
+    "binary_sensor": {
+      "pending_today": { "name": "Workout pending today" }
+    }
+  }
+}

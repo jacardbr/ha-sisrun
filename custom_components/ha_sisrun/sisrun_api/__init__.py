@@ -1,0 +1,14 @@
+"""Cliente e parser do SisRUN.
+
+`client.py` e `parser.py` são cópias sem alterações do projeto
+https://github.com/cdutr/sisrun-mcp (licença MIT, veja LICENSE-sisrun-mcp na
+raiz do pacote). O commit copiado está em UPSTREAM_COMMIT.txt.
+
+Para atualizar quando o SisRUN mudar o site: copie as versões novas desses dois
+arquivos por cima, sem editar.
+"""
+
+from .client import SisrunClient, SisrunError
+from .parser import detail_panels_missing, parse_week_html
+
+__all__ = ["SisrunClient", "SisrunError", "detail_panels_missing", "parse_week_html"]

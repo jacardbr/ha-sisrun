@@ -1,0 +1,55 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "SisRUN",
+        "description": "Use o mesmo e-mail e senha com que você entra no app do aluno (o acesso que o seu treinador te passou). A integração só lê a sua planilha de treinos; nunca escreve nada no SisRUN.",
+        "data": {
+          "email": "E-mail",
+          "password": "Senha"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Entrar de novo no SisRUN",
+        "description": "O SisRUN recusou o login de {email}. Informe a senha atual.",
+        "data": {
+          "password": "Senha"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "E-mail ou senha recusados pelo SisRUN.",
+      "cannot_connect": "Não consegui falar com o SisRUN (rede fora do ar ou o site mudou).",
+      "unknown": "Erro inesperado. Veja os logs do Home Assistant."
+    },
+    "abort": {
+      "already_configured": "Esta conta do SisRUN já está configurada.",
+      "reauth_successful": "Senha atualizada."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opções do SisRUN",
+        "data": {
+          "scan_interval_hours": "Consultar o SisRUN a cada (horas)",
+          "weeks_ahead": "Semanas à frente para buscar (0 = só a semana atual)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "calendar": {
+      "workouts": { "name": "Treinos" }
+    },
+    "sensor": {
+      "today": { "name": "Treino de hoje" },
+      "next": { "name": "Próximo treino" },
+      "week_planned_km": { "name": "Km planejados na semana" },
+      "week_done_km": { "name": "Km realizados na semana" }
+    },
+    "binary_sensor": {
+      "pending_today": { "name": "Treino pendente hoje" }
+    }
+  }
+}

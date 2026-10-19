@@ -1,0 +1,12 @@
+{
+  "domain": "ha_sisrun",
+  "name": "SisRUN",
+  "codeowners": [],
+  "config_flow": true,
+  "documentation": "https://github.com/cdutr/sisrun-mcp",
+  "integration_type": "service",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/cdutr/sisrun-mcp/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}
