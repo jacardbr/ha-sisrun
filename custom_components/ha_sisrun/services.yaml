@@ -1,0 +1,16 @@
+load_history:
+  fields:
+    weeks:
+      required: false
+      default: 12
+      example: 12
+      selector:
+        number:
+          min: 1
+          max: 52
+          mode: box
+    config_entry_id:
+      required: false
+      selector:
+        config_entry:
+          integration: ha_sisrun

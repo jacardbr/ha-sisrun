@@ -12,7 +12,7 @@ from homeassistant.components.sensor import (
     SensorEntity,
     SensorEntityDescription,
 )
-from homeassistant.const import UnitOfLength
+from homeassistant.const import PERCENTAGE, UnitOfLength
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util import dt as dt_util
@@ -23,9 +23,11 @@ from .data import (
     day_summary,
     describe,
     done_km_week,
+    first_today,
     next_pending,
     planned_km_week,
     prescribed,
+    week_adherence,
     workouts_on,
 )
 from .entity import SisrunEntity
@@ -39,6 +41,30 @@ def _next_date(rows: list[Workout], today: date) -> date | None:
 def _next_attrs(rows: list[Workout], today: date) -> dict[str, Any]:
     row = next_pending(rows, today)
     return {"workout": row, "summary": describe(row)} if row else {}
+
+
+def _today_field(
+    field: str, convert: Callable[[Any], Any] | None = None
+) -> Callable[[list[Workout], date], Any]:
+    """Valor de um campo do treino de hoje; None se não há treino ou o campo está vazio."""
+
+    def value_fn(rows: list[Workout], today: date) -> Any:
+        row = first_today(rows, today)
+        value = row.get(field) if row else None
+        if value in ("", None):
+            return None
+        return convert(value) if convert else value
+
+    return value_fn
+
+
+def _adherence_value(rows: list[Workout], today: date) -> int | None:
+    result = week_adherence(rows, today)
+    return result["percent"] if result else None
+
+
+def _adherence_attrs(rows: list[Workout], today: date) -> dict[str, Any]:
+    return week_adherence(rows, today) or {}
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -55,6 +81,24 @@ SENSORS: tuple[SisrunSensorDescription, ...] = (
         translation_key="today",
         value_fn=day_summary,
         attrs_fn=lambda rows, today: {"workouts": prescribed(workouts_on(rows, today))},
+    ),
+    SisrunSensorDescription(
+        key="today_km",
+        translation_key="today_km",
+        device_class=SensorDeviceClass.DISTANCE,
+        native_unit_of_measurement=UnitOfLength.KILOMETERS,
+        suggested_display_precision=1,
+        value_fn=_today_field("planned_km", lambda v: round(float(v), 1)),
+    ),
+    SisrunSensorDescription(
+        key="today_intensity",
+        translation_key="today_intensity",
+        value_fn=_today_field("intensity"),
+    ),
+    SisrunSensorDescription(
+        key="today_note",
+        translation_key="today_note",
+        value_fn=_today_field("coach_note", lambda v: str(v)[:255]),
     ),
     SisrunSensorDescription(
         key="next",
@@ -78,6 +122,13 @@ SENSORS: tuple[SisrunSensorDescription, ...] = (
         native_unit_of_measurement=UnitOfLength.KILOMETERS,
         suggested_display_precision=1,
         value_fn=done_km_week,
+    ),
+    SisrunSensorDescription(
+        key="week_adherence",
+        translation_key="week_adherence",
+        native_unit_of_measurement=PERCENTAGE,
+        value_fn=_adherence_value,
+        attrs_fn=_adherence_attrs,
     ),
 )
 

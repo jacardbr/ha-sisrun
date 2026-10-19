@@ -42,14 +42,34 @@
     "calendar": {
       "workouts": { "name": "Treinos" }
     },
+    "button": {
+      "refresh": { "name": "Atualizar agora" }
+    },
     "sensor": {
       "today": { "name": "Treino de hoje" },
+      "today_km": { "name": "Km do treino de hoje" },
+      "today_intensity": { "name": "Intensidade do treino de hoje" },
+      "today_note": { "name": "Observação do treinador (hoje)" },
       "next": { "name": "Próximo treino" },
       "week_planned_km": { "name": "Km planejados na semana" },
-      "week_done_km": { "name": "Km realizados na semana" }
-    },
-    "binary_sensor": {
-      "pending_today": { "name": "Treino pendente hoje" }
+      "week_done_km": { "name": "Km realizados na semana" },
+      "week_adherence": { "name": "Aderência semanal" }
+    }
+  },
+  "services": {
+    "load_history": {
+      "name": "Carregar histórico",
+      "description": "Busca semanas passadas no SisRUN e guarda no Home Assistant, para o calendário mostrar treinos antigos. Cada semana é uma requisição ao SisRUN; 12 semanas levam alguns segundos.",
+      "fields": {
+        "weeks": {
+          "name": "Semanas",
+          "description": "Quantas semanas para trás buscar (1 a 52)."
+        },
+        "config_entry_id": {
+          "name": "Conta",
+          "description": "Conta do SisRUN. Se vazio, vale para todas as contas configuradas."
+        }
+      }
     }
   }
 }

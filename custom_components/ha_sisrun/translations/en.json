@@ -42,14 +42,34 @@
     "calendar": {
       "workouts": { "name": "Workouts" }
     },
+    "button": {
+      "refresh": { "name": "Refresh now" }
+    },
     "sensor": {
       "today": { "name": "Today's workout" },
+      "today_km": { "name": "Today's workout distance" },
+      "today_intensity": { "name": "Today's workout intensity" },
+      "today_note": { "name": "Coach note (today)" },
       "next": { "name": "Next workout" },
       "week_planned_km": { "name": "Planned km this week" },
-      "week_done_km": { "name": "Done km this week" }
-    },
-    "binary_sensor": {
-      "pending_today": { "name": "Workout pending today" }
+      "week_done_km": { "name": "Done km this week" },
+      "week_adherence": { "name": "Weekly adherence" }
+    }
+  },
+  "services": {
+    "load_history": {
+      "name": "Load history",
+      "description": "Fetches past weeks from SisRUN and stores them in Home Assistant so the calendar shows older workouts. Each week is one request to SisRUN; 12 weeks take a few seconds.",
+      "fields": {
+        "weeks": {
+          "name": "Weeks",
+          "description": "How many weeks back to fetch (1 to 52)."
+        },
+        "config_entry_id": {
+          "name": "Account",
+          "description": "SisRUN account. If empty, applies to every configured account."
+        }
+      }
     }
   }
 }

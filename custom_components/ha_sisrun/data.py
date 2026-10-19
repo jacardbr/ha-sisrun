@@ -11,6 +11,7 @@ Feito Avulso (atividade importada que NÃO foi prescrita).
 
 from __future__ import annotations
 
+from collections import Counter
 from datetime import date, timedelta
 from typing import Any
 
@@ -20,6 +21,35 @@ PENDING_STATUSES = {"Proposto", "Programado"}
 NOT_PRESCRIBED = {"Feito Avulso"}
 
 REST_TEXT = "Sem treino"
+
+# Campos que definem "o que o treinador prescreveu". Status e dados de execução
+# ficam de fora de propósito: marcar um treino como feito não é mudar a planilha.
+SIGNATURE_FIELDS = (
+    "modality",
+    "workout_type",
+    "route",
+    "planned_km",
+    "intensity",
+    "hr_min",
+    "hr_max",
+    "time_min",
+    "time_max",
+    "structure",
+    "coach_note",
+)
+FIELD_LABELS = {
+    "modality": "modalidade",
+    "workout_type": "tipo",
+    "route": "percurso",
+    "planned_km": "distância",
+    "intensity": "intensidade",
+    "hr_min": "FC mínima",
+    "hr_max": "FC máxima",
+    "time_min": "tempo mínimo",
+    "time_max": "tempo máximo",
+    "structure": "estrutura",
+    "coach_note": "observação",
+}
 
 
 def _num(value: Any) -> float:
@@ -37,8 +67,11 @@ def workouts_on(rows: list[Workout], day: date) -> list[Workout]:
     return [r for r in rows if r.get("date") == iso]
 
 
-def pending_on(rows: list[Workout], day: date) -> list[Workout]:
-    return [r for r in workouts_on(rows, day) if r.get("status") in PENDING_STATUSES]
+def first_today(rows: list[Workout], day: date) -> Workout | None:
+    """Treino de `day` para os sensores de detalhe: o primeiro pendente, senão o primeiro."""
+    todays = prescribed(workouts_on(rows, day))
+    pending = [r for r in todays if r.get("status") in PENDING_STATUSES]
+    return (pending or todays or [None])[0]
 
 
 def next_pending(rows: list[Workout], today: date) -> Workout | None:
@@ -66,9 +99,42 @@ def planned_km_week(rows: list[Workout], day: date) -> float:
     return round(sum(_num(r.get("planned_km")) for r in prescribed(_in_week(rows, day))), 1)
 
 
-def done_km_week(rows: list[Workout], day: date) -> float:
+def done_km_week(rows: list[Workout], day: date, prescribed_only: bool = False) -> float:
     """Km realizados na semana de `day`, segundo o que o SisRUN associou."""
-    return round(sum(_num(r.get("done_distance_km")) for r in _in_week(rows, day)), 1)
+    week = _in_week(rows, day)
+    if prescribed_only:
+        week = prescribed(week)
+    return round(sum(_num(r.get("done_distance_km")) for r in week), 1)
+
+
+def week_adherence(rows: list[Workout], day: date) -> dict[str, Any] | None:
+    """Aderência da semana de `day`: treinos feitos / treinos prescritos.
+
+    "Justificado" fica fora da conta (o treinador aceitou a falta). Devolve None
+    quando a semana não tem treino prescrito (nada a medir).
+    """
+    week = prescribed(_in_week(rows, day))
+    counts = Counter(r.get("status") for r in week)
+    done = counts["Feito"]
+    missed = counts["Não Feito"]
+    justified = counts["Justificado"]
+    pending = sum(counts[s] for s in PENDING_STATUSES)
+    total = done + missed + pending
+    if not total:
+        return None
+    planned = planned_km_week(rows, day)
+    done_km = done_km_week(rows, day, prescribed_only=True)
+    return {
+        "percent": round(100 * done / total),
+        "done": done,
+        "pending": pending,
+        "missed": missed,
+        "justified": justified,
+        "total": total,
+        "planned_km": planned,
+        "done_km": done_km,
+        "km_percent": round(100 * done_km / planned) if planned else None,
+    }
 
 
 def describe(row: Workout) -> str:
@@ -123,3 +189,114 @@ def event_description(row: Workout) -> str:
             done += f", FC média {row['done_hr']}"
         lines.append(f"Realizado: {done}")
     return "\n".join(lines)
+
+
+# ---------- mudanças na planilha ----------
+
+
+def _signature(row: Workout) -> tuple[str, ...]:
+    return tuple(str(row.get(k) if row.get(k) is not None else "") for k in SIGNATURE_FIELDS)
+
+
+def _changed_fields(before: Workout, after: Workout) -> list[str]:
+    return [
+        FIELD_LABELS[k]
+        for k in SIGNATURE_FIELDS
+        if str(before.get(k) if before.get(k) is not None else "")
+        != str(after.get(k) if after.get(k) is not None else "")
+    ]
+
+
+def change_message(change: dict[str, Any]) -> str:
+    """Frase pronta para notificação."""
+    day = date.fromisoformat(change["date"]).strftime("%d/%m")
+    before, after = change["before"], change["after"]
+    if change["type"] == "added":
+        return f"Novo treino em {day}: {describe(after)}"
+    if change["type"] == "removed":
+        return f"Treino de {day} removido: {describe(before)}"
+    fields = ", ".join(change["fields"])
+    return f"Treino de {day} alterado ({fields}): {describe(before)} → {describe(after)}"
+
+
+def _make_change(kind: str, day: str, before: Workout | None, after: Workout | None) -> dict:
+    change: dict[str, Any] = {
+        "type": kind,
+        "date": day,
+        "before": before,
+        "after": after,
+        "fields": _changed_fields(before, after) if before and after else [],
+    }
+    change["message"] = change_message(change)
+    return change
+
+
+def diff_week(old_rows: list[Workout], new_rows: list[Workout]) -> list[dict[str, Any]]:
+    """Diferenças de prescrição entre duas leituras da mesma semana.
+
+    Compara só treinos prescritos e só os campos de `SIGNATURE_FIELDS`. Por dia,
+    descarta o que é idêntico dos dois lados; do que sobra, emparelha em ordem
+    como "alterado" e o excedente vira "novo" ou "removido".
+    """
+    old = prescribed(old_rows)
+    new = prescribed(new_rows)
+    changes: list[dict[str, Any]] = []
+    for day in sorted({r["date"] for r in old} | {r["date"] for r in new}):
+        pool = [r for r in old if r["date"] == day]
+        leftover_new: list[Workout] = []
+        for row in (r for r in new if r["date"] == day):
+            sig = _signature(row)
+            for i, candidate in enumerate(pool):
+                if _signature(candidate) == sig:
+                    del pool[i]
+                    break
+            else:
+                leftover_new.append(row)
+        for i in range(max(len(pool), len(leftover_new))):
+            before = pool[i] if i < len(pool) else None
+            after = leftover_new[i] if i < len(leftover_new) else None
+            kind = "changed" if before and after else "added" if after else "removed"
+            changes.append(_make_change(kind, day, before, after))
+    return changes
+
+
+# ---------- histórico por semana ----------
+
+
+def merge_weeks(
+    stored: dict[str, list[Workout]],
+    parsed: dict[str, list[Workout]],
+    missing_detail: set[str],
+    current_monday: str,
+    diff: bool = True,
+) -> tuple[dict[str, list[Workout]], list[dict[str, Any]], list[str]]:
+    """Junta semanas recém-lidas ao que já estava guardado.
+
+    Devolve (semanas, mudanças, semanas_mantidas). Só gera mudanças para semanas
+    de hoje em diante que já eram conhecidas: a primeira leitura de uma semana e
+    o histórico passado não disparam aviso. Uma semana que veio sem os painéis
+    de detalhe (site mudou) não sobrescreve a anterior, para não parecer que o
+    treinador apagou a estrutura dos treinos.
+    """
+    weeks = dict(stored)
+    changes: list[dict[str, Any]] = []
+    kept: list[str] = []
+    for start, new_rows in parsed.items():
+        old_rows = weeks.get(start)
+        if start in missing_detail and old_rows:
+            kept.append(start)
+            continue
+        if diff and old_rows is not None and start >= current_monday:
+            changes.extend(diff_week(old_rows, new_rows))
+        weeks[start] = new_rows
+    return weeks, changes, kept
+
+
+def prune_weeks(weeks: dict[str, list[Workout]], keep: int) -> dict[str, list[Workout]]:
+    """Mantém só as `keep` semanas mais recentes."""
+    newest = sorted(weeks)[-keep:]
+    return {start: weeks[start] for start in newest}
+
+
+def flatten_weeks(weeks: dict[str, list[Workout]]) -> list[Workout]:
+    return [row for start in sorted(weeks) for row in weeks[start]]

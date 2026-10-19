@@ -32,15 +32,19 @@ class SisrunCalendar(SisrunEntity, CalendarEntity):
 
     def _events(self) -> list[CalendarEvent]:
         events: list[CalendarEvent] = []
-        for index, row in enumerate(sorted(prescribed(self.workouts), key=lambda r: r["date"])):
+        per_day: dict[str, int] = {}
+        for row in sorted(prescribed(self.workouts), key=lambda r: r["date"]):
             day = date.fromisoformat(row["date"])
+            # uid estável: data + ordem dentro do dia (não muda quando o histórico cresce)
+            seq = per_day.get(row["date"], 0)
+            per_day[row["date"]] = seq + 1
             events.append(
                 CalendarEvent(
                     start=day,
                     end=day + timedelta(days=1),
                     summary=event_summary(row),
                     description=event_description(row),
-                    uid=f"sisrun-{row['date']}-{index}",
+                    uid=f"sisrun-{row['date']}-{seq}",
                 )
             )
         return events
