@@ -10,6 +10,13 @@
 - **Aderência semanal (%)**: feitos ÷ prescritos da semana, com contagens e km nos atributos.
 - **Histórico**: ação `ha_sisrun.load_history` busca até 52 semanas passadas e guarda no Home Assistant;
   o calendário passa a mostrá-las.
+- **Sensores por dia da semana**: "Treino de segunda" até "Treino de domingo", sempre da semana atual, com
+  o resumo do dia no estado e `date`, `statuses` e `workouts` nos atributos.
+- **Teste de desempenho**: sensor com o VO2 máx do último teste e o histórico completo nos atributos
+  (guardado no Home Assistant); evento `ha_sisrun_new_test` quando aparece um teste novo. Lê só a primeira
+  página (15 testes) da lista do SisRUN.
+- **Ícone e logo próprios** (pasta `brand/`, exibidos a partir do Home Assistant 2026.3): desenho original
+  de um corredor, nas cores do Home Assistant. Fontes SVG em `design/`.
 
 ### Removido
 - Binário **Treino pendente hoje** (existia na 0.1.0). Para lembretes, use o sensor **Treino de hoje**

@@ -53,7 +53,15 @@
       "next": { "name": "Next workout" },
       "week_planned_km": { "name": "Planned km this week" },
       "week_done_km": { "name": "Done km this week" },
-      "week_adherence": { "name": "Weekly adherence" }
+      "week_adherence": { "name": "Weekly adherence" },
+      "weekday_monday": { "name": "Monday workout" },
+      "weekday_tuesday": { "name": "Tuesday workout" },
+      "weekday_wednesday": { "name": "Wednesday workout" },
+      "weekday_thursday": { "name": "Thursday workout" },
+      "weekday_friday": { "name": "Friday workout" },
+      "weekday_saturday": { "name": "Saturday workout" },
+      "weekday_sunday": { "name": "Sunday workout" },
+      "performance_test": { "name": "Performance test" }
     }
   },
   "services": {

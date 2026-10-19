@@ -19,6 +19,8 @@ MAX_STORED_WEEKS = 104
 MAX_EVENTS_PER_REFRESH = 20
 
 EVENT_PLAN_CHANGED = "ha_sisrun_plan_changed"
+EVENT_NEW_TEST = "ha_sisrun_new_test"
+MAX_STORED_TESTS = 200
 
 SERVICE_LOAD_HISTORY = "load_history"
 ATTR_WEEKS = "weeks"

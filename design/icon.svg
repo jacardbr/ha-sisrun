@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- Ícone original da integração: corredor + linhas de velocidade + raia de pista.
+       Cores do Home Assistant: azul #41BDF5 -> #0288D1, glifos brancos. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#41BDF5"/>
+      <stop offset="1" stop-color="#0288D1"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="58" fill="url(#bg)"/>
+
+  <!-- raia de pista -->
+  <path d="M44 218 H212" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="10" stroke-linecap="round"/>
+
+  <!-- linhas de velocidade -->
+  <g fill="none" stroke="#fff" stroke-linecap="round" stroke-width="11">
+    <path d="M30 96 H62" stroke-opacity=".9"/>
+    <path d="M22 122 H52" stroke-opacity=".65"/>
+    <path d="M34 148 H58" stroke-opacity=".4"/>
+  </g>
+
+  <!-- corredor -->
+  <circle cx="160" cy="62" r="17" fill="#fff"/>
+  <g fill="none" stroke="#fff" stroke-width="16" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M148 94 L122 148"/>
+    <path d="M144 106 L176 124 L200 104"/>
+    <path d="M144 106 L114 124 L90 108"/>
+    <path d="M122 148 L160 162 L148 200"/>
+    <path d="M122 148 L96 180 L66 172"/>
+  </g>
+</svg>

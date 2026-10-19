@@ -20,14 +20,18 @@ from homeassistant.util import dt as dt_util
 from .coordinator import SisrunConfigEntry, SisrunCoordinator
 from .data import (
     Workout,
+    day_attrs,
     day_summary,
     describe,
     done_km_week,
     first_today,
+    latest_test,
     next_pending,
     planned_km_week,
     prescribed,
+    test_attrs,
     week_adherence,
+    weekday_date,
     workouts_on,
 )
 from .entity import SisrunEntity
@@ -73,6 +77,23 @@ class SisrunSensorDescription(SensorEntityDescription):
 
     value_fn: Callable[[list[Workout], date], Any]
     attrs_fn: Callable[[list[Workout], date], dict[str, Any]] | None = None
+
+
+WEEKDAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
+
+
+def _weekday_description(index: int, name: str) -> SisrunSensorDescription:
+    """Sensor de um dia fixo da semana atual (segunda a domingo).
+
+    O estado é o mesmo resumo do sensor "Treino de hoje" (ou `Sem treino`); os
+    detalhes completos ficam nos atributos. Na virada da semana passa a mostrar a nova.
+    """
+    return SisrunSensorDescription(
+        key=f"weekday_{name}",
+        translation_key=f"weekday_{name}",
+        value_fn=lambda rows, today: day_summary(rows, weekday_date(today, index)),
+        attrs_fn=lambda rows, today: day_attrs(rows, weekday_date(today, index)),
+    )
 
 
 SENSORS: tuple[SisrunSensorDescription, ...] = (
@@ -130,6 +151,7 @@ SENSORS: tuple[SisrunSensorDescription, ...] = (
         value_fn=_adherence_value,
         attrs_fn=_adherence_attrs,
     ),
+    *(_weekday_description(index, name) for index, name in enumerate(WEEKDAYS)),
 )
 
 
@@ -139,7 +161,12 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     coordinator = entry.runtime_data
-    async_add_entities(SisrunSensor(coordinator, entry, desc) for desc in SENSORS)
+    async_add_entities(
+        [
+            *(SisrunSensor(coordinator, entry, desc) for desc in SENSORS),
+            SisrunPerformanceSensor(coordinator, entry),
+        ]
+    )
 
 
 class SisrunSensor(SisrunEntity, SensorEntity):
@@ -166,3 +193,25 @@ class SisrunSensor(SisrunEntity, SensorEntity):
         if self.entity_description.attrs_fn is None:
             return None
         return self.entity_description.attrs_fn(self.workouts, dt_util.now().date())
+
+
+class SisrunPerformanceSensor(SisrunEntity, SensorEntity):
+    """Último teste de desempenho: o estado é o VO2 máx; o histórico fica nos atributos."""
+
+    _attr_translation_key = "performance_test"
+    _attr_native_unit_of_measurement = "mL/(kg·min)"
+    _attr_suggested_display_precision = 2
+    # O histórico completo engorda o banco do recorder sem utilidade.
+    _unrecorded_attributes = frozenset({"history"})
+
+    def __init__(self, coordinator: SisrunCoordinator, entry: SisrunConfigEntry) -> None:
+        super().__init__(coordinator, entry, "performance_test")
+
+    @property
+    def native_value(self) -> float | None:
+        latest = latest_test(self.coordinator.tests)
+        return latest.get("vo2max") if latest else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        return test_attrs(self.coordinator.tests)

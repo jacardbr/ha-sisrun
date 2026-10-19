@@ -21,13 +21,24 @@ from .const import (
     DEFAULT_SCAN_INTERVAL_HOURS,
     DEFAULT_WEEKS_AHEAD,
     DOMAIN,
+    EVENT_NEW_TEST,
     EVENT_PLAN_CHANGED,
     MAX_EVENTS_PER_REFRESH,
+    MAX_STORED_TESTS,
     MAX_STORED_WEEKS,
     REFRESH_WEEKS_BACK,
     STORAGE_VERSION,
 )
-from .data import Workout, flatten_weeks, merge_weeks, prune_weeks, week_bounds
+from .data import (
+    Test,
+    Workout,
+    flatten_weeks,
+    merge_tests,
+    merge_weeks,
+    prune_weeks,
+    test_message,
+    week_bounds,
+)
 from .sisrun_api import SisrunError, fetch_parsed
 
 _LOGGER = logging.getLogger(__name__)
@@ -55,7 +66,7 @@ def storage_key(entry_id: str) -> str:
 
 
 class SisrunCoordinator(DataUpdateCoordinator[list[Workout]]):
-    """Busca os treinos do SisRUN, guarda o histórico e avisa quando a planilha muda."""
+    """Busca os treinos e testes do SisRUN, guarda o histórico e avisa das mudanças."""
 
     config_entry: SisrunConfigEntry
 
@@ -75,20 +86,35 @@ class SisrunCoordinator(DataUpdateCoordinator[list[Workout]]):
             hass, STORAGE_VERSION, storage_key(entry.entry_id)
         )
         self._weeks: dict[str, list[Workout]] = {}
+        # Testes de desempenho, do mais novo ao mais antigo. `_tests_known` diz se já
+        # houve uma leitura bem-sucedida: só depois dela um teste novo gera evento.
+        self._tests: list[Test] = []
+        self._tests_known = False
         self._lock = asyncio.Lock()
+
+    @property
+    def tests(self) -> list[Test]:
+        return self._tests
 
     async def _async_setup(self) -> None:
         """Carrega o que já foi guardado (histórico e última planilha conhecida)."""
         stored = await self._store.async_load()
-        if stored and isinstance(stored.get("weeks"), dict):
+        if not stored:
+            return
+        if isinstance(stored.get("weeks"), dict):
             self._weeks = stored["weeks"]
+        if isinstance(stored.get("tests"), list):
+            self._tests = stored["tests"]
+            self._tests_known = True
 
     # ---------- atualização periódica ----------
 
     async def _async_update_data(self) -> list[Workout]:
         async with self._lock:
-            parsed, missing = await self._async_fetch(REFRESH_WEEKS_BACK, self._weeks_ahead)
-            await self._async_merge_and_save(parsed, missing)
+            parsed, missing, tests = await self._async_fetch(
+                REFRESH_WEEKS_BACK, self._weeks_ahead, with_tests=True
+            )
+            await self._async_merge_and_save(parsed, missing, tests)
             return flatten_weeks(self._weeks)
 
     # ---------- histórico sob demanda ----------
@@ -97,21 +123,21 @@ class SisrunCoordinator(DataUpdateCoordinator[list[Workout]]):
         """Busca `weeks` semanas passadas e guarda. Devolve quantas semanas foram lidas."""
         async with self._lock:
             try:
-                parsed, missing = await self._async_fetch(weeks, 0)
+                parsed, missing, _ = await self._async_fetch(weeks, 0, with_tests=False)
             except UpdateFailed as err:
                 raise HomeAssistantError(str(err)) from err
-            await self._async_merge_and_save(parsed, missing)
+            await self._async_merge_and_save(parsed, missing, None)
             self.async_set_updated_data(flatten_weeks(self._weeks))
             return len(parsed)
 
     # ---------- internos ----------
 
     async def _async_fetch(
-        self, back: int, ahead: int
-    ) -> tuple[dict[str, list[Workout]], set[str]]:
+        self, back: int, ahead: int, with_tests: bool
+    ) -> tuple[dict[str, list[Workout]], set[str], list[Test] | None]:
         try:
             return await self.hass.async_add_executor_job(
-                fetch_parsed, self._email, self._password, back, ahead
+                fetch_parsed, self._email, self._password, back, ahead, with_tests
             )
         except SisrunError as err:
             if is_auth_error(err):
@@ -119,7 +145,10 @@ class SisrunCoordinator(DataUpdateCoordinator[list[Workout]]):
             raise UpdateFailed(str(err)) from err
 
     async def _async_merge_and_save(
-        self, parsed: dict[str, list[Workout]], missing: set[str]
+        self,
+        parsed: dict[str, list[Workout]],
+        missing: set[str],
+        tests: list[Test] | None,
     ) -> None:
         current_monday = week_bounds(dt_util.now().date())[0].isoformat()
         weeks, changes, kept = merge_weeks(self._weeks, parsed, missing, current_monday)
@@ -129,8 +158,22 @@ class SisrunCoordinator(DataUpdateCoordinator[list[Workout]]):
                 start,
             )
         self._weeks = prune_weeks(weeks, MAX_STORED_WEEKS)
-        await self._store.async_save({"weeks": self._weeks})
+
+        new_tests: list[Test] = []
+        announce_tests = self._tests_known  # a primeira leitura é só a linha de base
+        if tests is not None:
+            merged, new_tests = merge_tests(self._tests, tests)
+            self._tests = merged[:MAX_STORED_TESTS]
+            self._tests_known = True
+
+        payload: dict[str, Any] = {"weeks": self._weeks}
+        if self._tests_known:
+            payload["tests"] = self._tests
+        await self._store.async_save(payload)
+
         self._fire_changes(changes)
+        if announce_tests:
+            self._fire_new_tests(new_tests)
 
     def _fire_changes(self, changes: list[dict[str, Any]]) -> None:
         if not changes:
@@ -146,4 +189,18 @@ class SisrunCoordinator(DataUpdateCoordinator[list[Workout]]):
                 "SisRUN: %d mudanças; só as primeiras %d geraram evento",
                 len(changes),
                 MAX_EVENTS_PER_REFRESH,
+            )
+
+    def _fire_new_tests(self, new_tests: list[Test]) -> None:
+        if not new_tests:
+            return
+        _LOGGER.info("SisRUN: %d teste(s) de desempenho novo(s)", len(new_tests))
+        for test in new_tests[:MAX_EVENTS_PER_REFRESH]:
+            self.hass.bus.async_fire(
+                EVENT_NEW_TEST,
+                {
+                    "config_entry_id": self.config_entry.entry_id,
+                    "message": test_message(test),
+                    **test,
+                },
             )

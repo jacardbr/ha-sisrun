@@ -19,6 +19,8 @@ Versão atual: **0.2.0** (veja o [CHANGELOG](CHANGELOG.md)).
 | Sensor **Km planejados na semana** | Soma dos km prescritos (usa o `planned_km` corrigido do sisrun-mcp). |
 | Sensor **Km realizados na semana** | Soma dos km que o SisRUN associou como feitos (importa do Garmin/Strava). |
 | Sensor **Aderência semanal** | % de treinos feitos entre os prescritos da semana (feitos ÷ feitos + não feitos + pendentes). `Justificado` fica fora da conta. Atributos: `done`, `pending`, `missed`, `justified`, `total`, `planned_km`, `done_km`, `km_percent`. Sem treino prescrito na semana, fica sem valor. |
+| Sensores **Treino de segunda … Treino de domingo** | Um por dia da semana atual. O estado é o mesmo resumo do **Treino de hoje** (`Corrida · Intervalado · 8.5 km`, ou `Sem treino`; com dois treinos no dia, aparecem juntos). Atributos: `date`, `statuses` (status de cada treino do dia) e `workouts` (detalhes completos: estrutura, FC, intensidade, observação do treinador e o que foi realizado). Na virada da semana (segunda, 00:00) passam a mostrar a semana nova. |
+| Sensor **Teste de desempenho** | Estado: **VO2 máx** do teste mais recente (mL/(kg·min)). Atributos: `date`, `protocol`, `distance_km`, `time`, `pace`, `speed_kmh`, `vo2max`, `tests_count` e `history` (lista com até 50 testes, do mais novo ao mais antigo, cada um com os mesmos campos). Lê a página *Teste de Desempenho* do SisRUN. |
 
 Os IDs das entidades dependem do idioma do seu Home Assistant (ex.: `sensor.sisrun_treino_de_hoje`).
 Confirme os reais em **Ferramentas do desenvolvedor → Estados**.
@@ -42,7 +44,8 @@ Confirme os reais em **Ferramentas do desenvolvedor → Estados**.
 4. No Home Assistant: **Configurações → Dispositivos e serviços → Adicionar integração → SisRUN**.
 5. Informe o e-mail e a senha que você usa no app do aluno.
 
-Precisa do Home Assistant **2025.1 ou mais novo**.
+Precisa do Home Assistant **2025.1 ou mais novo**. O ícone e o logo da integração (pasta `brand/`) só são
+exibidos a partir da **2026.3**; em versões anteriores aparece o ícone genérico, sem afetar o funcionamento.
 
 **Atualizando da 0.1.0:** apague `custom_components/ha_sisrun` antigo, copie o novo e reinicie. A conta
 configurada continua valendo; as entidades novas aparecem sozinhas. O binário "Treino pendente hoje" da
@@ -100,6 +103,31 @@ automation:
           message: "{{ trigger.event.data.message }}"
 ```
 
+## Testes de desempenho
+
+O sensor **Teste de desempenho** guarda todos os testes que já apareceram na página do SisRUN. O histórico
+fica no Home Assistant (`.storage`): se a página mostrar menos testes no futuro, os antigos não somem.
+`history` fica fora do banco do recorder, para não inchá-lo; o estado (VO2 máx) é gravado normalmente.
+
+- A página tem 15 testes por tela e a integração lê só a primeira. Quem tem mais de 15 testes terá, no
+  máximo, os 15 mais recentes lidos de uma vez (um aviso vai para o log).
+- Na primeira leitura os testes existentes viram só a "linha de base", sem avisos. Depois, cada teste novo
+  dispara o evento `ha_sisrun_new_test`, com os campos do teste (`date`, `protocol`, `distance_km`, `time`,
+  `pace`, `speed_kmh`, `vo2max`), uma frase pronta em `message` e `config_entry_id`.
+- A ação `ha_sisrun.load_history` não relê os testes; eles vêm da atualização normal.
+
+```yaml
+automation:
+  - alias: "Parabenizar pelo teste de desempenho"
+    triggers:
+      - trigger: event
+        event_type: ha_sisrun_new_test
+    actions:
+      - action: notify.notify
+        data:
+          message: "{{ trigger.event.data.message }}"
+```
+
 ## Exemplo de automação: lembrete de manhã
 
 O sensor **Treino de hoje** vale `Sem treino` nos dias sem prescrição, então ele serve de condição:
@@ -139,6 +167,9 @@ automation:
   integração apaga esse arquivo.
 - A integração só fala com `https://appsisrun.com.br`. Consulta poucas vezes por dia, com intervalo entre
   requisições, para não sobrecarregar o servidor. Respeite os Termos de Serviço do SisRUN.
+- O ícone e o logo são desenhos originais desta integração (fontes em `design/`), nas cores do Home Assistant;
+  não reproduzem a marca do SisRUN. Para trocar o texto ou as cores, edite o SVG e regere os PNGs de
+  `custom_components/ha_sisrun/brand/` (`icon` 256×256 e `logo`, mais as versões `@2x` e `dark_`).
 - Os horários dos treinos **não existem** no SisRUN, por isso os eventos do calendário são de dia inteiro.
 - `Feito Avulso` (atividade importada que o treinador não prescreveu) não aparece no calendário, não entra
   nos km planejados nem na aderência.

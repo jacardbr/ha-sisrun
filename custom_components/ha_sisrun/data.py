@@ -89,6 +89,21 @@ def week_bounds(day: date) -> tuple[date, date]:
     return monday, monday + timedelta(days=6)
 
 
+def weekday_date(today: date, index: int) -> date:
+    """Data do dia `index` (0 = segunda … 6 = domingo) na semana de `today`."""
+    return week_bounds(today)[0] + timedelta(days=index)
+
+
+def day_attrs(rows: list[Workout], day: date) -> dict[str, Any]:
+    """Atributos de um sensor de dia da semana: data, status e treinos prescritos."""
+    todays = prescribed(workouts_on(rows, day))
+    return {
+        "date": day.isoformat(),
+        "statuses": [r.get("status") for r in todays],
+        "workouts": todays,
+    }
+
+
 def _in_week(rows: list[Workout], day: date) -> list[Workout]:
     start, end = week_bounds(day)
     return [r for r in rows if start.isoformat() <= r.get("date", "") <= end.isoformat()]
@@ -300,3 +315,68 @@ def prune_weeks(weeks: dict[str, list[Workout]], keep: int) -> dict[str, list[Wo
 
 def flatten_weeks(weeks: dict[str, list[Workout]]) -> list[Workout]:
     return [row for start in sorted(weeks) for row in weeks[start]]
+
+
+# ---------- testes de desempenho ----------
+
+Test = dict[str, Any]
+
+# Quantos testes entram no atributo `history` do sensor (o resto fica guardado).
+MAX_HISTORY_IN_ATTRS = 50
+
+
+def test_key(test: Test) -> str:
+    """Identificador do teste: o `id` do SisRUN (data-rk) ou, sem ele, data+protocolo+tempo."""
+    if test.get("id"):
+        return f"id:{test['id']}"
+    return f"{test.get('date')}|{test.get('protocol')}|{test.get('time')}"
+
+
+def _newest_first(tests: list[Test]) -> list[Test]:
+    return sorted(tests, key=lambda t: (t.get("date", ""), t.get("time_s") or 0), reverse=True)
+
+
+def merge_tests(stored: list[Test], new: list[Test]) -> tuple[list[Test], list[Test]]:
+    """Junta os testes lidos aos já guardados.
+
+    Devolve (todos, do mais novo ao mais antigo; novos, do mais antigo ao mais novo).
+    Um teste já conhecido é atualizado (o treinador pode corrigir um resultado);
+    um teste que sumiu da tela continua no histórico.
+    """
+    merged = {test_key(t): t for t in stored}
+    added: dict[str, Test] = {}
+    for test in new:
+        key = test_key(test)
+        if key not in merged:
+            added[key] = test
+        merged[key] = test
+    return _newest_first(list(merged.values())), list(reversed(_newest_first(list(added.values()))))
+
+
+def latest_test(tests: list[Test]) -> Test | None:
+    return _newest_first(tests)[0] if tests else None
+
+
+def test_attrs(tests: list[Test]) -> dict[str, Any]:
+    """Atributos do sensor: o último teste por extenso e o histórico completo."""
+    latest = latest_test(tests)
+    if not latest:
+        return {}
+    attrs: dict[str, Any] = {
+        key: latest.get(key)
+        for key in ("date", "protocol", "distance_km", "time", "pace", "speed_kmh", "vo2max")
+    }
+    attrs["tests_count"] = len(tests)
+    attrs["history"] = _newest_first(tests)[:MAX_HISTORY_IN_ATTRS]
+    return attrs
+
+
+def test_message(test: Test) -> str:
+    """Frase pronta para notificação de um teste novo."""
+    day = date.fromisoformat(test["date"]).strftime("%d/%m/%Y")
+    parts = [test.get("protocol") or "Teste"]
+    if test.get("time"):
+        parts.append(test["time"])
+    if test.get("vo2max") is not None:
+        parts.append("VO2 máx " + f"{test['vo2max']:.2f}".replace(".", ","))
+    return f"Novo teste de desempenho em {day}: " + " · ".join(parts)

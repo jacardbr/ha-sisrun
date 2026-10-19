@@ -53,7 +53,15 @@
       "next": { "name": "Próximo treino" },
       "week_planned_km": { "name": "Km planejados na semana" },
       "week_done_km": { "name": "Km realizados na semana" },
-      "week_adherence": { "name": "Aderência semanal" }
+      "week_adherence": { "name": "Aderência semanal" },
+      "weekday_monday": { "name": "Treino de segunda" },
+      "weekday_tuesday": { "name": "Treino de terça" },
+      "weekday_wednesday": { "name": "Treino de quarta" },
+      "weekday_thursday": { "name": "Treino de quinta" },
+      "weekday_friday": { "name": "Treino de sexta" },
+      "weekday_saturday": { "name": "Treino de sábado" },
+      "weekday_sunday": { "name": "Treino de domingo" },
+      "performance_test": { "name": "Teste de desempenho" }
     }
   },
   "services": {
