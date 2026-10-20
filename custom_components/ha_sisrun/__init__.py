@@ -79,6 +79,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     websocket_api.async_register_command(hass, _ws_set_registration)
     websocket_api.async_register_command(hass, _ws_set_race_name)
     websocket_api.async_register_command(hass, _ws_set_race_time)
+    websocket_api.async_register_command(hass, _ws_set_race_hidden)
     return True
 
 
@@ -126,7 +127,7 @@ def _ws_races(hass: HomeAssistant, connection: websocket_api.ActiveConnection, m
         msg["id"],
         {
             "known": coordinator.races_known,
-            "races": with_registration(coordinator.races, coordinator.registrations, coordinator.race_names, coordinator.race_times),
+            "races": with_registration(coordinator.races, coordinator.registrations, coordinator.race_names, coordinator.race_times, coordinator.hidden_races),
         },
     )
 
@@ -136,7 +137,8 @@ def _ws_races(hass: HomeAssistant, connection: websocket_api.ActiveConnection, m
     {
         vol.Required("type"): f"{DOMAIN}/set_registration",
         vol.Required("key"): vol.All(cv.string, vol.Length(max=300)),
-        vol.Required("registered"): cv.boolean,
+        vol.Optional("registered"): cv.boolean,
+        vol.Optional("status"): vol.In(["none", "planned", "registered", "done", "missed"]),
         vol.Optional(ATTR_CONFIG_ENTRY_ID): cv.string,
     }
 )
@@ -153,11 +155,12 @@ async def _ws_set_registration(
         connection.send_error(msg["id"], "not_found", "Nenhuma conta do SisRUN carregada.")
         return
     try:
-        await entries[0].runtime_data.async_set_registration(msg["key"], msg["registered"])
+        status = msg.get("status") or ("registered" if msg.get("registered") else "planned")
+        await entries[0].runtime_data.async_set_race_status(msg["key"], status)
     except HomeAssistantError as err:
         connection.send_error(msg["id"], "not_found", str(err))
         return
-    connection.send_result(msg["id"], {"key": msg["key"], "registered": msg["registered"]})
+    connection.send_result(msg["id"], {"key": msg["key"], "status": status})
 
 
 @websocket_api.require_admin
@@ -216,6 +219,35 @@ async def _ws_set_race_time(
         connection.send_error(msg["id"], "not_found", str(err))
         return
     connection.send_result(msg["id"], {"key": msg["key"], "time": " ".join(msg["time"].split())})
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/set_race_hidden",
+        vol.Required("key"): vol.All(cv.string, vol.Length(max=300)),
+        vol.Required("hidden"): cv.boolean,
+        vol.Optional(ATTR_CONFIG_ENTRY_ID): cv.string,
+    }
+)
+@websocket_api.async_response
+async def _ws_set_race_hidden(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict
+) -> None:
+    """Oculta ou restaura uma prova no card (só no Home Assistant)."""
+    entry_id = msg.get(ATTR_CONFIG_ENTRY_ID)
+    entries = [
+        e for e in hass.config_entries.async_loaded_entries(DOMAIN) if entry_id in (None, e.entry_id)
+    ]
+    if not entries:
+        connection.send_error(msg["id"], "not_found", "Nenhuma conta do SisRUN carregada.")
+        return
+    try:
+        await entries[0].runtime_data.async_set_race_hidden(msg["key"], msg["hidden"])
+    except HomeAssistantError as err:
+        connection.send_error(msg["id"], "not_found", str(err))
+        return
+    connection.send_result(msg["id"], {"key": msg["key"], "hidden": msg["hidden"]})
 
 
 async def _async_register_card(hass: HomeAssistant) -> None:

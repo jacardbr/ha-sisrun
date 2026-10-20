@@ -31,11 +31,13 @@ from .const import (
     MAX_STORED_RACES,
     MAX_STORED_TESTS,
     MAX_STORED_WEEKS,
+    RACE_STATUSES,
     REFRESH_WEEKS_BACK,
     STORAGE_VERSION,
 )
 from .data import (
     Race,
+    race_status,
     Test,
     Workout,
     flatten_weeks,
@@ -104,11 +106,13 @@ class SisrunCoordinator(DataUpdateCoordinator[list[Workout]]):
         self._races: list[Race] = []
         self._races_known = False
         # Inscrição nas provas: dado só do Home Assistant (o SisRUN não informa), por chave da prova.
-        self._registrations: dict[str, bool] = {}
+        self._registrations: dict[str, Any] = {}
         # Nomes dados por você às provas (só locais), por chave da prova.
         self._race_names: dict[str, str] = {}
         # Tempo de prova que você cadastra (só local), por chave da prova.
         self._race_times: dict[str, str] = {}
+        # Provas que você ocultou (só local), por chave.
+        self._hidden_races: set[str] = set()
         self._lock = asyncio.Lock()
 
     def has_week(self, monday_iso: str) -> bool:
@@ -124,7 +128,7 @@ class SisrunCoordinator(DataUpdateCoordinator[list[Workout]]):
         return self._races
 
     @property
-    def registrations(self) -> dict[str, bool]:
+    def registrations(self) -> dict[str, Any]:
         return self._registrations
 
     @property
@@ -134,6 +138,21 @@ class SisrunCoordinator(DataUpdateCoordinator[list[Workout]]):
     @property
     def race_times(self) -> dict[str, str]:
         return self._race_times
+
+    @property
+    def hidden_races(self) -> set[str]:
+        return self._hidden_races
+
+    async def async_set_race_hidden(self, key: str, hidden: bool) -> None:
+        """Oculta/restaura uma prova só no Home Assistant (o SisRUN não é tocado)."""
+        if key not in {race_key(r) for r in self._races}:
+            raise HomeAssistantError("Prova não encontrada.")
+        async with self._lock:
+            if hidden:
+                self._hidden_races.add(key)
+            else:
+                self._hidden_races.discard(key)
+            await self._store.async_save(self._payload())
 
     async def async_set_race_time(self, key: str, value: str) -> None:
         """Guarda o tempo de prova só no Home Assistant (vazio apaga)."""
@@ -160,14 +179,24 @@ class SisrunCoordinator(DataUpdateCoordinator[list[Workout]]):
             await self._store.async_save(self._payload())
 
     async def async_set_registration(self, key: str, registered: bool) -> None:
-        """Marca/desmarca a inscrição numa prova guardada. Só vive no Home Assistant."""
+        """Marca/desmarca a inscrição (atalho de `async_set_race_status`)."""
+        await self.async_set_race_status(key, "registered" if registered else "planned")
+
+    async def async_set_race_status(self, key: str, status: str) -> None:
+        """Situação da prova (inscrito, planejada, feita, perdida), só no Home Assistant."""
         if key not in {race_key(r) for r in self._races}:
             raise HomeAssistantError("Prova não encontrada.")
+        if status == "none":  # antigo "não inscrito": agora é planejada
+            status = "planned"
+        if status not in RACE_STATUSES:
+            raise HomeAssistantError("Situação inválida.")
         async with self._lock:
-            if registered:
-                self._registrations[key] = True
+            if status == "planned":
+                self._registrations.pop(key, None)  # planejada é o padrão
+            elif status == "registered":
+                self._registrations[key] = True  # mesmo formato de antes
             else:
-                self._registrations.pop(key, None)
+                self._registrations[key] = status
             await self._store.async_save(self._payload())
 
     @property
@@ -188,7 +217,9 @@ class SisrunCoordinator(DataUpdateCoordinator[list[Workout]]):
         if isinstance(stored.get("history_weeks"), int):
             self._history_done = stored["history_weeks"]
         if isinstance(stored.get("registrations"), dict):
-            self._registrations = {k: True for k, v in stored["registrations"].items() if v}
+            self._registrations = {
+                k: v for k, v in stored["registrations"].items() if race_status(v) != "planned"
+            }
         if isinstance(stored.get("race_names"), dict):
             self._race_names = {
                 k: v for k, v in stored["race_names"].items() if isinstance(v, str) and v
@@ -197,6 +228,8 @@ class SisrunCoordinator(DataUpdateCoordinator[list[Workout]]):
             self._race_times = {
                 k: v for k, v in stored["race_times"].items() if isinstance(v, str) and v
             }
+        if isinstance(stored.get("hidden_races"), list):
+            self._hidden_races = {k for k in stored["hidden_races"] if isinstance(k, str)}
         if isinstance(stored.get("races"), list):
             self._races = stored["races"]
             self._races_known = True
@@ -290,6 +323,8 @@ class SisrunCoordinator(DataUpdateCoordinator[list[Workout]]):
             payload["race_names"] = self._race_names
         if self._race_times:
             payload["race_times"] = self._race_times
+        if self._hidden_races:
+            payload["hidden_races"] = sorted(self._hidden_races)
         return payload
 
     async def async_import_initial_history(self) -> None:

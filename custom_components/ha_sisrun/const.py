@@ -49,3 +49,6 @@ RETIRED_ENTITIES: tuple[tuple[str, str], ...] = (
     ("sensor", "today_hr_max"),
     ("sensor", "today_structure"),
 )
+
+# Situação local de uma prova (só no Home Assistant); sem entrada = planejada (padrão).
+RACE_STATUSES = ("planned", "registered", "done", "missed")

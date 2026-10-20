@@ -415,19 +415,35 @@ def race_key(race: Race) -> str:
     return f"{race.get('date')}|{race.get('full_name') or race.get('name')}"
 
 
+def race_status(value: object) -> str:
+    """Situação local guardada (True = inscrito, de versões antigas).
+
+    Sem registro (ou com o antigo `none`), a prova está `planned`, o padrão.
+    """
+    if value is True:
+        return "registered"
+    if isinstance(value, str) and value in ("registered", "done", "missed"):
+        return value
+    return "planned"
+
+
 def with_registration(
     races: list[Race], registrations: dict[str, bool], names: dict[str, str] | None = None,
     times: dict[str, str] | None = None,
+    hidden: set[str] | None = None,
 ) -> list[Race]:
     """Provas com `key` e `registered` (dado local: o SisRUN não informa a inscrição)."""
     out = []
     for race in races:
         key = race_key(race)
-        item = {**race, "key": key, "registered": bool(registrations.get(key))}
+        status = race_status(registrations.get(key))
+        item = {**race, "key": key, "local_status": status, "registered": status == "registered"}
         if names and names.get(key):
             item["local_name"] = names[key]  # só no Home Assistant; `name` segue o do SisRUN
         if times and times.get(key):
             item["finish_time"] = times[key]  # tempo de prova, só no Home Assistant
+        if hidden and key in hidden:
+            item["hidden"] = True  # ocultada por você; só no Home Assistant
         out.append(item)
     return out
 

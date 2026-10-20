@@ -1,10 +1,25 @@
 # Changelog
 
-## 0.3.0
+## 0.4.0
 
 ### Novo
 - **Tempo de prova** (campo editável sob o título, já vem como 00:00:00; só administradores editam): você cadastra o tempo final de cada prova; fica guardado só no Home Assistant, salva ao sair do campo ou com Enter. Comando `ha_sisrun/set_race_time`.
-- **Renomear prova só localmente** (lápis ✎ ao lado do título, só para administradores): o nome fica guardado no Home Assistant e o SisRUN não é alterado; salvar vazio volta ao nome original. Comando `ha_sisrun/set_race_name`.
+- **Renomear prova só localmente** (toque no título para editar; só administradores): o nome fica guardado no Home Assistant e o SisRUN não é alterado; salvar vazio volta ao nome original. Comando `ha_sisrun/set_race_name`.
+- **Aba Provas redesenhada**: data em ícone de calendário (verde = futura, azul = hoje, cinza = passada), borda da linha por prioridade (dourado, prateado, bronzeado), tempo relativo sob o título, tag de km na cor da inscrição e ícone de inscrição (✓ verde / ✗ vermelho) no canto direito.
+- **Aba Vo2 Max**: colunas de protocolo e velocidade removidas, colunas de largura igual e nova coluna **Comparação** (▲ verde / ▼ vermelho em relação ao teste anterior).
+
+- **Situação da prova no ícone de inscrição**: o padrão é Planejada (azul, ampulheta); cada toque troca entre Planejada → Inscrito (verde ✓) → Feita (cinza ✓) → Perdida (laranja ✗) e volta ao início; a tag de km acompanha a cor.
+
+- **Ocultar prova**: toque no ícone de calendário (mantém cores e estrutura, mas dia e mês viram um ✗ vermelho) e toque de novo para confirmar — sem o segundo toque em 3 s volta ao normal; a prova some da lista (continua no SisRUN). Um **olho** fixo no canto direito da linha dos anos alterna entre ocultar e exibir as ocultas, que aparecem esmaecidas e podem ser restauradas pelo mesmo toque. Ocultar/restaurar: só administradores.
+
+### Mudanças internas
+- Comando websocket `ha_sisrun/set_race_hidden`.
+- `ha_sisrun/set_registration` aceita `status` (`planned` = padrão, `registered`, `done`, `missed`; `none` vale como `planned`); `registered` continua funcionando.
+- Comandos websocket `ha_sisrun/set_race_name` e `ha_sisrun/set_race_time` (exigem administrador).
+
+## 0.3.0
+
+### Novo
 - **Card Lovelace `custom:ha-sisrun-card`** com três abas: **Planilha** (semana atual), **VO2 Max**
   (último teste, gráfico de histórico e tabela) e **Provas** (objetivos/metas do SisRUN, com filtro por ano). Servido pela própria integração
   e carregado automaticamente; acha as entidades sozinho (ou via `entities:`).

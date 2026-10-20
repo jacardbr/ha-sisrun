@@ -5,7 +5,7 @@ aviso quando o treinador muda a planilha e histórico de semanas passadas.
 
 **Somente leitura**: nunca escreve nada no SisRUN. Não é afiliado nem apoiado pelo SisRUN.
 
-Versão atual: **0.3.0** (veja o [CHANGELOG](CHANGELOG.md)).
+Versão atual: **0.4.0** (veja o [CHANGELOG](CHANGELOG.md)).
 
 ## O que você ganha
 

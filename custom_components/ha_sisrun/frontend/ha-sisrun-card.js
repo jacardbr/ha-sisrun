@@ -1,5 +1,16 @@
 /* SisRUN card para o Home Assistant (não oficial). Sem dependências externas. */
-const CARD_VERSION = "0.3.0";
+const CARD_VERSION = "0.4.0";
+const HOURGLASS = '<svg viewBox="0 0 24 24" width="1.15em" height="1.15em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 2h14M5 22h14"/><path d="M7 2v4.5a5 5 0 0 0 2 4l3 1.5-3 1.5a5 5 0 0 0-2 4V22M17 2v4.5a5 5 0 0 1-2 4L12 12l3 1.5a5 5 0 0 1 2 4V22"/><path d="M9.5 19.5h5L12 16.5z" fill="currentColor" stroke="none"/><path d="M10 7.5h4L12 10z" fill="currentColor" stroke="none"/></svg>';
+const EYE = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+const EYE_OFF = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7c2 0 3.7.6 5.2 1.4M22 12s-3.5 7-10 7c-2 0-3.7-.6-5.2-1.4"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/><path d="M3 3l18 18"/></svg>';
+// Situação local de cada prova; o clique percorre esta ordem.
+const RSTAT = {
+  registered: { c: "var(--success-color, #43a047)", i: "✓" },
+  planned: { c: "var(--info-color, #039be5)", i: HOURGLASS },
+  done: { c: "var(--disabled-text-color, #9e9e9e)", i: "✓" },
+  missed: { c: "var(--warning-color, #fb8c00)", i: "✗" },
+};
+const RORDER = ["planned", "registered", "done", "missed"];
 const DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
 const TABS = ["plan", "vo2", "races"];
 
@@ -12,8 +23,8 @@ const T = {
     status: { Proposto: "Proposto", Feito: "Feito", "Não Feito": "Não feito", Justificado: "Justificado", Programado: "Programado" },
     noPlan: "Planilha sem dados ainda.", noWorkouts: "Sem treinos nesta semana.", noWeekData: "Sem dados guardados desta semana. Para semanas passadas, use a ação ha_sisrun.load_history.", week: "Semana", prev: "Semana anterior", next: "Próxima semana", first: "Primeira semana registrada", last: "Última semana registrada", loading: "Carregando…", noTests: "Nenhum teste de desempenho lido ainda.",
     latest: "Último teste", history: "Histórico", date: "Data", protocol: "Protocolo", distance: "Distância",
-    time: "Tempo", pace: "Pace", speed: "Velocidade", change: "vs. teste anterior", vsPrev: "vs. anterior", tests: "testes",
-    all: "Todos", races1: "prova", racesN: "provas", noRaces: "Nenhuma prova lida ainda.", noRacesYear: "Sem provas neste ano.", racesError: "Não consegui carregar as provas.", main: "Principal", archived: "Arquivada", reg: "Inscrição", timePh: "Tempo de prova (h:mm:ss)", timeTip: "Tempo de prova (só no Home Assistant)", rename: "Renomear (só no Home Assistant)", renameSave: "Salvar", renameCancel: "Cancelar", renameHint: "Nome original no SisRUN: ", regOn: "Inscrito: toque para desmarcar", regOff: "Não inscrito: toque para marcar como inscrito", inRel: "em {t}", agoRel: "há {t}", todayRace: "hoje", units: { y: ["ano", "anos"], m: ["mês", "meses"], d: ["dia", "dias"] }, and: "e",
+    time: "Tempo", pace: "Pace", speed: "Velocidade", change: "vs. teste anterior", vsPrev: "Comparação", tests: "testes",
+    all: "Todos", races1: "prova", racesN: "provas", noRaces: "Nenhuma prova lida ainda.", noRacesYear: "Sem provas neste ano.", racesError: "Não consegui carregar as provas.", main: "Principal", archived: "Arquivada", reg: "Inscrição", hideTip: "Ocultar prova", hideAsk: "Ocultar esta prova?", hideDo: "Ocultar", showAsk: "Restaurar esta prova?", showDo: "Restaurar", cancel: "Cancelar", showHidden: "Mostrar ocultas", hideHidden: "Esconder ocultas", stLbl: { registered: "Inscrito", planned: "Planejada", done: "Feita", missed: "Perdida" }, stHead: { planned: "Planejada", done: "Feita", missed: "Perdida" }, stHint: "toque para mudar", timePh: "Tempo de prova (h:mm:ss)", timeTip: "Tempo de prova (só no Home Assistant)", rename: "Renomear (só no Home Assistant)", renameSave: "Salvar", renameCancel: "Cancelar", renameHint: "Nome original no SisRUN: ", regOn: "Inscrito: toque para desmarcar", regOff: "Não inscrito: toque para marcar como inscrito", inRel: "em {t}", agoRel: "há {t}", todayRace: "hoje", units: { y: ["ano", "anos"], m: ["mês", "meses"], d: ["dia", "dias"] }, and: "e",
     missing: "Não encontrei as entidades do SisRUN. Informe-as em `entities:` na configuração do card.",
     unit: "mL/(kg·min)",
   },
@@ -25,8 +36,8 @@ const T = {
     status: { Proposto: "Planned", Feito: "Done", "Não Feito": "Missed", Justificado: "Excused", Programado: "Scheduled" },
     noPlan: "No plan data yet.", noWorkouts: "No workouts this week.", noWeekData: "No stored data for this week. For past weeks, use the ha_sisrun.load_history action.", week: "Week", prev: "Previous week", next: "Next week", first: "First recorded week", last: "Last recorded week", loading: "Loading…", noTests: "No performance tests read yet.",
     latest: "Latest test", history: "History", date: "Date", protocol: "Protocol", distance: "Distance",
-    time: "Time", pace: "Pace", speed: "Speed", change: "vs. previous test", vsPrev: "vs. previous", tests: "tests",
-    all: "All", races1: "race", racesN: "races", noRaces: "No races read yet.", noRacesYear: "No races this year.", racesError: "Could not load the races.", main: "Main", archived: "Archived", reg: "Registration", timePh: "Finish time (h:mm:ss)", timeTip: "Finish time (Home Assistant only)", rename: "Rename (Home Assistant only)", renameSave: "Save", renameCancel: "Cancel", renameHint: "Original name in SisRUN: ", regOn: "Registered: tap to unmark", regOff: "Not registered: tap to mark as registered", inRel: "in {t}", agoRel: "{t} ago", todayRace: "today", units: { y: ["year", "years"], m: ["month", "months"], d: ["day", "days"] }, and: "and",
+    time: "Time", pace: "Pace", speed: "Speed", change: "vs. previous test", vsPrev: "Comparison", tests: "tests",
+    all: "All", races1: "race", racesN: "races", noRaces: "No races read yet.", noRacesYear: "No races this year.", racesError: "Could not load the races.", main: "Main", archived: "Archived", reg: "Registration", hideTip: "Hide race", hideAsk: "Hide this race?", hideDo: "Hide", showAsk: "Restore this race?", showDo: "Restore", cancel: "Cancel", showHidden: "Show hidden", hideHidden: "Hide hidden", stLbl: { registered: "Registered", planned: "Planned", done: "Done", missed: "Missed" }, stHead: { planned: "Planned", done: "Done", missed: "Missed" }, stHint: "tap to change", timePh: "Finish time (h:mm:ss)", timeTip: "Finish time (Home Assistant only)", rename: "Rename (Home Assistant only)", renameSave: "Save", renameCancel: "Cancel", renameHint: "Original name in SisRUN: ", regOn: "Registered: tap to unmark", regOff: "Not registered: tap to mark as registered", inRel: "in {t}", agoRel: "{t} ago", todayRace: "today", units: { y: ["year", "years"], m: ["month", "months"], d: ["day", "days"] }, and: "and",
     missing: "Could not find the SisRUN entities. Set them under `entities:` in the card config.",
     unit: "mL/(kg·min)",
   },
@@ -116,9 +127,10 @@ th { color: var(--secondary-text-color); font-weight: 500; }
 td.n, th.n { text-align: right; padding-right: 0; padding-left: 8px; }
 tr.sel td { background: color-mix(in srgb, var(--primary-color) 8%, transparent); }
 table.vt { table-layout: fixed; }
+table.vt th:last-child, table.vt td:last-child { width: 22.5%; }
 .cmp.up { color: var(--success-color, #43a047); font-weight: 500; }
 .cmp.down { color: var(--error-color, #db4437); font-weight: 500; }
-table.vt th, table.vt td { width: 16.66%; text-align: center; padding: 6px 4px; }
+table.vt th, table.vt td { width: 15.5%; text-align: center; padding: 6px 4px; }
 .tscroll { overflow-x: auto; }
 .years { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
 .yr { appearance: none; background: none; border: 1px solid var(--divider-color); border-radius: 16px; padding: 4px 14px; cursor: pointer;
@@ -145,8 +157,19 @@ table.vt th, table.vt td { width: 16.66%; text-align: center; padding: 6px 4px; 
 .cal b { display: block; font-size: 1.4em; font-weight: 500; line-height: 1.15; padding-top: 2px; color: var(--primary-text-color); }
 .cal .cy { font-size: .7em; text-transform: uppercase; color: var(--secondary-text-color); padding-bottom: 3px; }
 .rmain { flex: 1; min-width: 0; align-self: stretch; min-height: 62px; display: flex; flex-direction: column; justify-content: space-between; gap: 4px; }
-.rpen { appearance: none; background: none; border: 0; padding: 0 0 0 6px; font-size: .9em; color: var(--secondary-text-color); cursor: pointer; opacity: .6; }
-.rpen:hover, .rpen:focus-visible { opacity: 1; color: var(--primary-color); }
+.cal.clickable { cursor: pointer; }
+.cal.clickable:hover { box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary-color) 40%, transparent); }
+.cal.confirm { cursor: pointer; }
+.cal.confirm .cx { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 1.9em; font-weight: 700; line-height: 1; }
+.cal.confirm.del .cx { color: var(--error-color, #db4437); }
+.cal.confirm.restore .cx { color: var(--success-color, #43a047); }
+.race.hid { opacity: .45; border-style: dashed; }
+.eye { appearance: none; position: relative; margin-left: auto; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 28px; padding: 0; background: none; border: 0; border-radius: 16px; color: var(--secondary-text-color); cursor: pointer; }
+.eye[aria-pressed="true"] { color: var(--primary-color); }
+.eye:hover { background: color-mix(in srgb, var(--primary-color) 8%, transparent); }
+.eye:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+.rname.editable { cursor: text; }
+.rname.editable:hover { color: var(--primary-color); }
 .redit { display: flex; gap: 4px; align-items: center; }
 .rinput { flex: 1; min-width: 0; font: inherit; color: var(--primary-text-color); background: var(--card-background-color); border: 1px solid var(--primary-color); border-radius: 6px; padding: 3px 6px; }
 .rbtn { appearance: none; font: inherit; width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--divider-color); background: var(--card-background-color); color: var(--primary-text-color); cursor: pointer; }
@@ -157,14 +180,12 @@ table.vt th, table.vt td { width: 16.66%; text-align: center; padding: 6px 4px; 
 .rtime[readonly] { border-bottom-color: transparent; }
 .rname { color: var(--primary-text-color); overflow-wrap: anywhere; }
 .rmeta { font-size: .85em; color: var(--secondary-text-color); margin-top: 2px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.reg { appearance: none; font: inherit; box-sizing: border-box; flex: 0 0 auto; width: 80px; height: 44px; display: flex; flex-direction: column; justify-content: space-between; align-items: stretch; text-align: center; padding: 0; overflow: hidden; border-radius: 8px; cursor: pointer; background: var(--card-background-color); color: var(--error-color, #db4437); border: 1px solid var(--error-color, #db4437); }
-.reg .rh { background: var(--error-color, #db4437); color: #fff; font-size: .6em; font-weight: 500; text-transform: uppercase; letter-spacing: 0; padding: 2px 0; line-height: 1.4; }
+.reg { appearance: none; font: inherit; box-sizing: border-box; flex: 0 0 auto; width: 80px; height: 44px; display: flex; flex-direction: column; justify-content: space-between; align-items: stretch; text-align: center; padding: 0; overflow: hidden; border-radius: 8px; cursor: pointer; background: var(--card-background-color); color: var(--rc); border: 1px solid var(--rc); }
+.reg .rh { background: var(--rc); color: #fff; font-size: .6em; font-weight: 500; text-transform: uppercase; letter-spacing: 0; padding: 2px 0; line-height: 1.4; }
+.reg .rv svg { display: block; }
 .reg .rv { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 1.2em; font-weight: 700; line-height: 1; }
-.reg[aria-pressed="true"] { color: var(--success-color, #43a047); border-color: var(--success-color, #43a047); }
-.reg[aria-pressed="true"] .rh { background: var(--success-color, #43a047); }
 .reg:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
-.rside .chip.km-off { background: var(--error-color, #db4437); }
-.rside .chip.km-on { background: var(--success-color, #43a047); }
+.rside .chip.km { background: var(--rc); }
 .rside .chip { box-sizing: border-box; width: 100%; text-align: center; border-radius: 8px; }
 .rside { flex: 0 0 80px; display: flex; flex-direction: column; gap: 4px; align-items: stretch; }
 .rrel { font-size: .8em; color: var(--secondary-text-color); white-space: nowrap; }
@@ -183,6 +204,8 @@ class SisrunCard extends HTMLElement {
     this._racesCache = null;
     this._year = null;
     this._editKey = null;
+    this._confirmKey = null;
+    this._showHidden = false;
     this._typing = false;
     this._sig = "";
   }
@@ -258,13 +281,17 @@ class SisrunCard extends HTMLElement {
     this.shadowRoot.innerHTML = `<style>${STYLE}</style><ha-card>
       ${title ? `<div class="head"><div class="title">${esc(title)}</div></div>` : ""}
       <div class="tabs" role="tablist">${tabs}</div><div class="body">${body}</div></ha-card>`;
-    this.shadowRoot.querySelectorAll(".tab").forEach((b) => b.addEventListener("click", () => { this._tab = b.dataset.tab; this._editKey = null; this._sig = ""; this._render(); }));
+    this.shadowRoot.querySelectorAll(".tab").forEach((b) => b.addEventListener("click", () => { this._tab = b.dataset.tab; this._editKey = null; this._confirmKey = null; this._sig = ""; this._render(); }));
     this.shadowRoot.querySelectorAll("[data-nav]").forEach((b) => b.addEventListener("click", () => {
       const v = Number(b.dataset.nav);
       this._offset = v === 0 ? 0 : this._offset + v;
       this._render();
     }));
-    this.shadowRoot.querySelectorAll("[data-rename]").forEach((b) => b.addEventListener("click", () => { this._editKey = b.dataset.rename; this._sig = ""; this._render(); }));
+    this.shadowRoot.querySelectorAll("[data-rename]").forEach((b) => {
+      const go = () => { this._editKey = b.dataset.rename; this._sig = ""; this._render(); };
+      b.addEventListener("click", go);
+      b.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
+    });
     this.shadowRoot.querySelectorAll("[data-cancel]").forEach((b) => b.addEventListener("click", () => this._endEdit()));
     this.shadowRoot.querySelectorAll("[data-save]").forEach((b) => b.addEventListener("click", () => this._saveName(b.dataset.save)));
     this.shadowRoot.querySelectorAll(".rtime").forEach((i) => {
@@ -280,8 +307,24 @@ class SisrunCard extends HTMLElement {
       });
       inp.focus(); inp.select();
     }
+    this.shadowRoot.querySelectorAll("[data-cal]").forEach((b) => {
+      const go = () => {
+        const key = b.dataset.cal;
+        this._confirmKey = key; this._editKey = null; this._sig = ""; this._render();
+        clearTimeout(this._confirmTimer); // sem segundo toque em 3 s, volta ao normal
+        this._confirmTimer = setTimeout(() => { if (this._confirmKey === key) { this._confirmKey = null; this._sig = ""; this._render(); } }, 3000);
+      };
+      b.addEventListener("click", go);
+      b.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
+    });
+    this.shadowRoot.querySelectorAll("[data-hide]").forEach((b) => {
+      const go = () => this._setHidden(b.dataset.hide, b.dataset.to === "1");
+      b.addEventListener("click", go);
+      b.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
+    });
+    this.shadowRoot.querySelectorAll("[data-toggle-hidden]").forEach((b) => b.addEventListener("click", () => { this._showHidden = !this._showHidden; this._confirmKey = null; this._sig = ""; this._render(); }));
     this.shadowRoot.querySelectorAll("[data-reg]").forEach((b) => b.addEventListener("click", () => this._toggleReg(b.dataset.reg)));
-    this.shadowRoot.querySelectorAll("[data-year]").forEach((b) => b.addEventListener("click", () => { this._year = b.dataset.year; this._editKey = null; this._sig = ""; this._render(); }));
+    this.shadowRoot.querySelectorAll("[data-year]").forEach((b) => b.addEventListener("click", () => { this._year = b.dataset.year; this._editKey = null; this._confirmKey = null; this._sig = ""; this._render(); }));
     this.shadowRoot.querySelectorAll("[data-goto]").forEach((b) => b.addEventListener("click", () => {
       const data = this._weekData(this._offset, this._find());
       const target = data && (b.dataset.goto === "first" ? data.first_week : data.last_week);
@@ -407,11 +450,12 @@ class SisrunCard extends HTMLElement {
   _toggleReg(key) {
     const race = this._racesCache?.data?.races?.find((r) => r.key === key);
     if (!race) return;
-    const value = !race.registered;
-    race.registered = value;
+    const before = (race.local_status === "none" ? "planned" : race.local_status) || (race.registered ? "registered" : "planned");
+    const next = RORDER[(RORDER.indexOf(before) + 1) % RORDER.length];
+    race.local_status = next; race.registered = next === "registered";
     this._sig = ""; this._render();
-    this._hass.callWS({ type: "ha_sisrun/set_registration", key, registered: value }).catch(() => {
-      race.registered = !value; // não gravou: desfaz
+    this._hass.callWS({ type: "ha_sisrun/set_registration", key, status: next }).catch(() => {
+      race.local_status = before; race.registered = before === "registered"; // não gravou: desfaz
       this._sig = ""; this._render();
     });
   }
@@ -428,6 +472,20 @@ class SisrunCard extends HTMLElement {
     this._sig = ""; this._render();
     this._hass.callWS({ type: "ha_sisrun/set_race_time", key, time: value }).catch(() => {
       if (before) race.finish_time = before; else delete race.finish_time;
+      this._sig = ""; this._render();
+    });
+  }
+
+  /** Ocultar é local: a prova some do card, mas continua no SisRUN e pode ser restaurada. */
+  _setHidden(key, hidden) {
+    const race = this._racesCache?.data?.races?.find((r) => r.key === key);
+    this._confirmKey = null; clearTimeout(this._confirmTimer);
+    if (!race) { this._sig = ""; this._render(); return; }
+    const before = !!race.hidden;
+    if (hidden) race.hidden = true; else delete race.hidden;
+    this._sig = ""; this._render();
+    this._hass.callWS({ type: "ha_sisrun/set_race_hidden", key, hidden }).catch(() => {
+      if (before) race.hidden = true; else delete race.hidden;
       this._sig = ""; this._render();
     });
   }
@@ -454,8 +512,13 @@ class SisrunCard extends HTMLElement {
     const c = this._racesData();
     if (!c || c.pending) return `<div class="empty">${esc(t.loading)}</div>`;
     if (c.error) return `<div class="empty">${esc(t.racesError)}</div>`;
-    const all = (c.data?.races || []).filter((r) => r && r.date);
-    if (!all.length) return `<div class="empty">${esc(t.noRaces)}</div>`;
+    const every = (c.data?.races || []).filter((r) => r && r.date);
+    if (!every.length) return `<div class="empty">${esc(t.noRaces)}</div>`;
+    const hiddenCount = every.filter((r) => r.hidden).length;
+    const all = this._showHidden ? every : every.filter((r) => !r.hidden);
+    const eyeTip = this._showHidden ? t.hideHidden : t.showHidden;
+    const eye = `<button class="eye" data-toggle-hidden="1" aria-pressed="${this._showHidden}" title="${esc(eyeTip)}${hiddenCount ? ` (${hiddenCount})` : ""}" aria-label="${esc(eyeTip)}">${this._showHidden ? EYE : EYE_OFF}</button>`;
+    if (!all.length) return `<div class="years">${eye}</div><div class="empty">${esc(t.noRaces)}</div>`;
     const todayIso = this._iso(new Date());
     const canEdit = !!this._hass?.user?.is_admin;
     const years = [...new Set(all.map((r) => r.date.slice(0, 4)))].sort().reverse();
@@ -464,7 +527,7 @@ class SisrunCard extends HTMLElement {
       this._year = years.includes(cur) ? cur : years[0];
     }
     const chip = (v, label) => `<button class="yr" data-year="${esc(v)}" aria-pressed="${this._year === v}">${esc(label)}</button>`;
-    let h = `<div class="years">${chip("all", t.all)}${years.map((y) => chip(y, y)).join("")}</div>`;
+    let h = `<div class="years">${chip("all", t.all)}${years.map((y) => chip(y, y)).join("")}${eye}</div>`;
     const shown = (this._year === "all" ? all : all.filter((r) => r.date.startsWith(this._year)))
       .slice().sort((a, b) => b.date.localeCompare(a.date) || a.name.localeCompare(b.name)); // mais nova primeiro
     if (!shown.length) return h + `<div class="empty">${esc(t.noRacesYear)}</div>`;
@@ -495,16 +558,21 @@ class SisrunCard extends HTMLElement {
       const pn = String(r.priority || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
       const prio = pn.startsWith("princ") ? "gold" : pn.startsWith("secund") ? "silver" : pn.startsWith("terc") ? "bronze" : "";
       const meta = r.status && r.status !== "Exibir" ? r.status : "";
-      const regBtn = r.key ? `<button class="reg" data-reg="${esc(r.key)}" aria-pressed="${!!r.registered}" title="${esc(t.reg)}: ${esc(r.registered ? t.regOn : t.regOff)}" aria-label="${esc(t.reg)}: ${esc(r.registered ? t.regOn : t.regOff)}"><span class="rh">${esc(t.reg)}</span><span class="rv">${r.registered ? "✓" : "✗"}</span></button>` : "";
+      const st = (r.local_status === "none" ? "" : r.local_status) || (r.registered ? "registered" : "planned");
+      const rs = RSTAT[st] || RSTAT.planned;
+      const stTip = `${t.reg}: ${t.stLbl[st]} (${t.stHint})`;
+      const regBtn = r.key ? `<button class="reg" data-reg="${esc(r.key)}" style="--rc:${rs.c}" title="${esc(stTip)}" aria-label="${esc(stTip)}"><span class="rh">${esc(t.stHead[st] || t.reg)}</span><span class="rv">${rs.i}</span></button>` : "";
       const chipColor = SIT[r.situation] || "var(--secondary-text-color)";
-      const kmChip = r.distance_km != null ? `<span class="chip km ${r.registered ? "km-on" : "km-off"}" style="margin-left:0">${fmtNum(r.distance_km, r.distance_km % 1 ? 1 : 0)} km</span>` : "";
+      const kmChip = r.distance_km != null ? `<span class="chip km" style="margin-left:0;--rc:${rs.c}">${fmtNum(r.distance_km, r.distance_km % 1 ? 1 : 0)} km</span>` : "";
       const sitChip = r.situation ? `<span class="chip" style="margin-left:0;background:${chipColor}">${esc(r.situation)}</span>` : "";
       const [yy, mm, dd] = r.date.split("-").map(Number);
       const mon = new Date(yy, mm - 1, dd).toLocaleDateString(LOCALE, { month: "short" }).replace(".", "");
-      h += `<div class="race${past ? " past" : ""}${isNext ? " next" : ""}${prio ? " p-" + prio : ""}"><div class="rleft"><div class="cal ${r.date < todayIso ? "c-past" : r.date === todayIso ? "c-today" : "c-future"}"><div class="cm">${yy}</div><b>${String(dd).padStart(2, "0")}</b><div class="cy">${esc(mon)}</div></div></div>
+      h += `<div class="race${r.hidden ? " hid" : ""}${past ? " past" : ""}${isNext ? " next" : ""}${prio ? " p-" + prio : ""}"><div class="rleft">${this._confirmKey === r.key && r.key && canEdit
+          ? `<div class="cal confirm ${r.hidden ? "restore" : "del"} ${r.date < todayIso ? "c-past" : r.date === todayIso ? "c-today" : "c-future"}" data-hide="${esc(r.key)}" data-to="${r.hidden ? 0 : 1}" role="button" tabindex="0" title="${esc(r.hidden ? t.showAsk : t.hideAsk)}" aria-label="${esc(r.hidden ? t.showAsk : t.hideAsk)}"><div class="cm">${yy}</div><span class="cx">${r.hidden ? "✓" : "✗"}</span></div>`
+          : `<div class="cal${r.key && canEdit ? " clickable" : ""} ${r.date < todayIso ? "c-past" : r.date === todayIso ? "c-today" : "c-future"}"${r.key && canEdit ? ` data-cal="${esc(r.key)}" role="button" tabindex="0" title="${esc(t.hideTip)}"` : ""}><div class="cm">${yy}</div><b>${String(dd).padStart(2, "0")}</b><div class="cy">${esc(mon)}</div></div>`}</div>
         <div class="rmain">${this._editKey === r.key
           ? `<div class="redit"><input class="rinput" data-key="${esc(r.key)}" maxlength="120" value="${esc(r.local_name || r.name)}"><button class="rbtn" data-save="${esc(r.key)}" title="${esc(t.renameSave)}" aria-label="${esc(t.renameSave)}">✓</button><button class="rbtn" data-cancel="1" title="${esc(t.renameCancel)}" aria-label="${esc(t.renameCancel)}">✕</button></div>`
-          : `<div class="rname"${r.local_name ? ` title="${esc(t.renameHint + r.name)}"` : ""}>${esc(r.local_name || r.name)}${r.key && canEdit ? `<button class="rpen" data-rename="${esc(r.key)}" title="${esc(t.rename)}" aria-label="${esc(t.rename)}">✎</button>` : ""}</div>`}${r.key ? `<input class="rtime${r.finish_time ? "" : " zero"}" data-key="${esc(r.key)}" data-orig="${esc(r.finish_time || "")}" value="${esc(r.finish_time || "00:00:00")}" maxlength="20" title="${esc(t.timeTip)}" aria-label="${esc(t.timeTip)}"${canEdit ? "" : " readonly"}>` : ""}
+          : `<div class="rname${r.key && canEdit ? " editable" : ""}"${r.key && canEdit ? ` data-rename="${esc(r.key)}" role="button" tabindex="0"` : ""} title="${esc((r.key && canEdit ? t.rename : "") + (r.key && canEdit && r.local_name ? " · " : "") + (r.local_name ? t.renameHint + r.name : ""))}">${esc(r.local_name || r.name)}</div>`}${r.key ? `<input class="rtime${r.finish_time ? "" : " zero"}" data-key="${esc(r.key)}" data-orig="${esc(r.finish_time || "")}" value="${esc(r.finish_time || "00:00:00")}" maxlength="20" title="${esc(t.timeTip)}" aria-label="${esc(t.timeTip)}"${canEdit ? "" : " readonly"}>` : ""}
         <div class="rmeta"><span class="rrel">${esc(rel(r.date))}</span>${meta ? `<span>${esc(meta)}</span>` : ""}</div></div>
         <div class="rside">${regBtn}${kmChip}</div></div>`;
     }
